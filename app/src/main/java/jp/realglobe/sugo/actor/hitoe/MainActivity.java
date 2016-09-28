@@ -3,9 +3,12 @@ package jp.realglobe.sugo.actor.hitoe;
 import android.app.AlertDialog;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.media.Ringtone;
+import android.media.RingtoneManager;
 import android.os.Bundle;
 import android.os.CountDownTimer;
 import android.os.Handler;
+import android.os.Vibrator;
 import android.preference.PreferenceManager;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
@@ -36,12 +39,17 @@ public class MainActivity extends AppCompatActivity {
 
     private volatile State state = State.MAIN;
 
+    private Vibrator vibrator;
+    private Ringtone ringtone;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
         this.handler = new Handler();
         this.timerHandler = new Handler();
+        this.vibrator = (Vibrator) getSystemService(VIBRATOR_SERVICE);
+        this.ringtone = RingtoneManager.getRingtone(this, RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM));
 
         reset();
 
@@ -110,6 +118,8 @@ public class MainActivity extends AppCompatActivity {
             this.callTimer = null;
         }
         this.eventQueue.clear();
+        this.vibrator.cancel();
+        this.ringtone.stop();
 
         Log.d(LOG_TAG, "Mode was reset");
     }
@@ -131,8 +141,12 @@ public class MainActivity extends AppCompatActivity {
         this.eventQueue.clear();
 
         final SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
-        final long delay = 1_000L * Integer.parseInt(sharedPreferences.getString("key_delay", "30"));
-        this.callTimer = new CountDownTimer(delay, 100) {
+        final int delay = Integer.parseInt(sharedPreferences.getString("key_delay", "30"));
+
+        this.vibrator.vibrate(new long[]{500, 1_000}, 0);
+        this.ringtone.play();
+
+        this.callTimer = new CountDownTimer(1_000L * delay, 100) {
             @Override
             public void onTick(long l) {
                 ((TextView) findViewById(R.id.counter_count)).setText(Integer.toString((int) Math.ceil(l / 1_000.0)));
@@ -172,6 +186,8 @@ public class MainActivity extends AppCompatActivity {
             this.callTimer = null;
         }
         this.eventQueue.clear();
+        this.vibrator.cancel();
+        this.ringtone.stop();
 
         Log.d(LOG_TAG, "Emergency mode started");
     }

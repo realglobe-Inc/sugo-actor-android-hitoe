@@ -239,7 +239,7 @@ public class MainActivity extends AppCompatActivity {
         this.eventQueue.clear();
 
         final SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
-        final int delay = Integer.parseInt(sharedPreferences.getString("key_delay", "30"));
+        final int delay = Integer.parseInt(sharedPreferences.getString(getString(R.string.key_delay), getString(R.string.default_delay)));
 
         this.vibrator.vibrate(new long[]{500, 1_000}, 0);
         this.ringtone.play();
@@ -312,7 +312,7 @@ public class MainActivity extends AppCompatActivity {
         this.timerHandler.removeCallbacksAndMessages(null);
 
         final SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
-        final long delay = 1_000L * Integer.parseInt(sharedPreferences.getString("key_timer", "300"));
+        final long delay = 1_000L * Integer.parseInt(sharedPreferences.getString(getString(R.string.key_timer), getString(R.string.default_timer)));
         this.timerHandler.postDelayed(() -> {
             MainActivity.this.eventQueue.offer("dummy");
             Log.d(LOG_TAG, "Dummy emergency event was generated");

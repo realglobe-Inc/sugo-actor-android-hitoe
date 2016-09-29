@@ -16,17 +16,19 @@ import java.util.Set;
 
 public class SettingsPreferenceFragment extends PreferenceFragment {
 
-    private static final Set<String> showDefaultKeys = new HashSet<>();
-
-    static {
-        showDefaultKeys.addAll(Arrays.asList("key_delay", "key_server", "key_timer"));
-    }
+    private final Set<String> showDefaultKeys = new HashSet<>();
 
     private SharedPreferences.OnSharedPreferenceChangeListener changeListenter;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        showDefaultKeys.addAll(Arrays.asList(
+                getString(R.string.key_delay),
+                getString(R.string.key_server),
+                getString(R.string.key_timer)
+        ));
 
         addPreferencesFromResource(R.xml.activity_settings);
         showDefaults();

@@ -15,4 +15,5 @@
     <string name="heart_rate">心拍数:</string>
     <string name="heart_rate_default">0</string>
     <string name="heart_rate_unit">bpm</string>
+    <string name="action_allow">位置の送信を許可</string>
 </resources>

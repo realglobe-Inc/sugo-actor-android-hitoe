@@ -6,6 +6,10 @@
         android:orderInCategory="100"
         android:title="@string/action_settings" />
     <item
+        android:id="@+id/action_allow"
+        android:orderInCategory="150"
+        android:title="@string/action_allow" />
+    <item
         android:id="@+id/action_reset"
         android:orderInCategory="200"
         android:title="@string/action_reset" />

@@ -18,6 +18,14 @@
         android:title="サーバーアドレス" />
 
     <EditTextPreference
+        android:defaultValue="@string/default_actor_suffix"
+        android:dialogMessage="ID を入力してください\nsugo-actor としてのキーは先頭に固定のアクタータグを付けたものになります"
+        android:dialogTitle="クライアント ID"
+        android:key="@string/key_actor_suffix"
+        android:summary="..."
+        android:title="クライアント ID" />
+
+    <EditTextPreference
         android:defaultValue="@string/default_timer"
         android:dialogMessage="異常検知イベントを強制的に発生させるまでの秒数を入力してください"
         android:dialogTitle="タイマー（秒）"

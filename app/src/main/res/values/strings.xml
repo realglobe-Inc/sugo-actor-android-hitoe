@@ -22,4 +22,9 @@
     <string name="default_delay">30</string>
     <string name="default_server">http://localhost/</string>
     <string name="default_timer">300</string>
+    <string name="key_actor_suffix">key_actor</string>
+    <string name="default_actor_suffix">1</string>
+    <string name="actor_prefix">qq:hitoe:</string>
+    <string name="module">hitoe</string>
+    <string name="description">Hitoe の Actor</string>
 </resources>

@@ -29,17 +29,42 @@ import com.google.android.gms.common.api.GoogleApiClient.ConnectionCallbacks;
 import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.location.LocationServices;
 
+import org.json.JSONObject;
+
+import java.net.URI;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+
+import io.socket.client.Ack;
+import io.socket.client.Manager;
+import io.socket.client.Socket;
 
 public class MainActivity extends AppCompatActivity {
 
     private static final String LOG_TAG = MainActivity.class.getName();
+
+    private static final String NAMESPACE = "/actors";
+
+    private static final String KEY_KEY = "key";
+    private static final String KEY_NAME = "name";
+    private static final String KEY_SPEC = "spec";
+    private static final String KEY_VERSION = "version";
+    private static final String KEY_DESC = "desc";
+    private static final String KEY_METHODS = "methods";
+    private static final String KEY_MODULE = "module";
+    private static final String KEY_EVENT = "event";
+    private static final String KEY_DATA = "data";
+    private static final String KEY_HEART_RATE = "heartRate";
+    private static final String KEY_LOCATION = "location";
 
     private final ExecutorService executor = Executors.newCachedThreadPool();
     private BlockingQueue<String> eventQueue = new ArrayBlockingQueue<>(1);
@@ -61,6 +86,13 @@ public class MainActivity extends AppCompatActivity {
 
     private GoogleApiClient googleApiClient;
     private volatile Location location;
+
+    private static final String EVENT_WARNING = State.WARNING.name().toLowerCase();
+    private static final String EVENT_EMERGENCY = State.EMERGENCY.name().toLowerCase();
+
+    private Future<?> reporter;
+
+    private volatile int heartRate;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -218,6 +250,12 @@ public class MainActivity extends AppCompatActivity {
         this.vibrator.cancel();
         this.ringtone.stop();
         this.googleApiClient.disconnect();
+        if (this.reporter != null) {
+            if ((!this.reporter.isDone()) && (!this.reporter.isCancelled())) {
+                this.reporter.cancel(true);
+            }
+            this.reporter = null;
+        }
 
         Log.d(LOG_TAG, "Mode was reset");
     }
@@ -268,6 +306,10 @@ public class MainActivity extends AppCompatActivity {
 
         this.googleApiClient.connect();
 
+        if (this.reporter == null) {
+            this.reporter = this.executor.submit(this::runForReport);
+        }
+
         Log.d(LOG_TAG, "Warning mode started");
     }
 
@@ -290,6 +332,9 @@ public class MainActivity extends AppCompatActivity {
         this.ringtone.stop();
         if (!(this.googleApiClient.isConnecting() && this.googleApiClient.isConnected())) {
             this.googleApiClient.connect();
+        }
+        if (this.reporter == null) {
+            this.reporter = this.executor.submit(this::runForReport);
         }
 
         Log.d(LOG_TAG, "Emergency mode started");
@@ -318,6 +363,104 @@ public class MainActivity extends AppCompatActivity {
             Log.d(LOG_TAG, "Dummy emergency event was generated");
         }, delay);
         Log.d(LOG_TAG, "Event timer started");
+    }
+
+    private String actorKey;
+
+    /**
+     * 現状をサーバーに報告する
+     */
+    private void runForReport() {
+        final SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
+        final String server = sharedPreferences.getString(getString(R.string.key_server), getString(R.string.default_server));
+        this.actorKey = getString(R.string.actor_prefix) + sharedPreferences.getString(getString(R.string.key_actor_suffix), getString(R.string.default_actor_suffix));
+
+        final CountDownLatch endFlag = new CountDownLatch(1);
+        final Socket socket = (new Manager(URI.create(server))).socket(NAMESPACE);
+        try {
+            final CountDownLatch startFlag = new CountDownLatch(1);
+            socket.on(Socket.EVENT_CONNECT, args -> {
+                Log.d(LOG_TAG, socket.id() + " connected to " + server);
+                processAfterConnection(socket, endFlag);
+            });
+            socket.on(Socket.EVENT_DISCONNECT, args -> {
+                Log.d(LOG_TAG, socket.id() + " disconnected from " + server);
+            });
+            socket.connect();
+
+            endFlag.await();
+
+            while (true) {
+                final Map<String, Object> data2 = new HashMap<>();
+                data2.put(KEY_HEART_RATE, this.heartRate);
+                final Location curLocation = this.location;
+                if (curLocation != null) {
+                    data2.put(KEY_LOCATION, Arrays.asList(curLocation.getLatitude(), curLocation.getLongitude(), curLocation.getAltitude()));
+                }
+                if (this.state == State.WARNING) {
+                    emit(socket, EVENT_WARNING, data2);
+                } else if (this.state == State.EMERGENCY) {
+                    emit(socket, EVENT_EMERGENCY, data2);
+                }
+                Log.d(LOG_TAG, socket.id() + " sent report");
+
+                Thread.sleep(1_000);
+            }
+        } catch (InterruptedException e) {
+            // 終了
+        } finally {
+            endFlag.countDown();
+            socket.close();
+        }
+    }
+
+    private void processAfterConnection(Socket socket, CountDownLatch endFlag) {
+        if (endFlag.getCount() == 0) {
+            return;
+        }
+
+        final Map<String, Object> data = new HashMap<>();
+        data.put(KEY_KEY, this.actorKey);
+        socket.emit(SocketConstants.GreetingEvents.HI, new JSONObject(data), (Ack) args -> {
+            Log.d(LOG_TAG, socket.id() + " greeted");
+            processAfterGreeting(socket, endFlag);
+        });
+    }
+
+    private void processAfterGreeting(Socket socket, CountDownLatch endFlag) {
+        if (endFlag.getCount() == 0) {
+            return;
+        }
+
+        final Map<String, Object> specData = new HashMap<>();
+        specData.put(KEY_NAME, getString(R.string.module));
+        try {
+            specData.put(KEY_VERSION, getPackageManager().getPackageInfo(this.getPackageName(), 0).versionName);
+        } catch (PackageManager.NameNotFoundException e) {
+            throw new RuntimeException(e);
+        }
+        specData.put(KEY_DESC, getString(R.string.description));
+        specData.put(KEY_METHODS, new HashMap<String, Object>());
+
+        final Map<String, Object> data = new HashMap<>();
+        data.put(KEY_NAME, getString(R.string.module));
+        data.put(KEY_SPEC, specData);
+
+        socket.emit(SocketConstants.RemoteEvents.SPEC, new JSONObject(data), (Ack) args -> {
+            Log.d(LOG_TAG, socket.id() + " sent specification");
+            endFlag.countDown();
+        });
+    }
+
+    private void emit(Socket socket, String event, Map<String, Object> data) {
+        final Map<String, Object> wrapData = new HashMap<>();
+        wrapData.put(KEY_KEY, this.actorKey);
+        wrapData.put(KEY_MODULE, getString(R.string.module));
+        wrapData.put(KEY_EVENT, event);
+        if (data != null) {
+            wrapData.put(KEY_DATA, data);
+        }
+        socket.emit(SocketConstants.RemoteEvents.PIPE, new JSONObject(wrapData));
     }
 
 }

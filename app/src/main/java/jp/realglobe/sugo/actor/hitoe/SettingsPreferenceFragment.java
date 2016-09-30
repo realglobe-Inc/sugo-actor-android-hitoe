@@ -27,7 +27,8 @@ public class SettingsPreferenceFragment extends PreferenceFragment {
         showDefaultKeys.addAll(Arrays.asList(
                 getString(R.string.key_delay),
                 getString(R.string.key_server),
-                getString(R.string.key_timer)
+                getString(R.string.key_timer),
+                getString(R.string.key_actor_suffix)
         ));
 
         addPreferencesFromResource(R.xml.activity_settings);

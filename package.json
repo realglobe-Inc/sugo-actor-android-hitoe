@@ -1,0 +1,8 @@
+{
+  "devDependencies": {
+    "asleep": "^1.0.3",
+    "co": "^4.6.0",
+    "sugo-caller": "^3.0.4",
+    "sugo-hub": "^4.0.6"
+  }
+}

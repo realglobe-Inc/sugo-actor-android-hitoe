@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+    <EditTextPreference
+        android:defaultValue="@string/default_delay"
+        android:dialogMessage="異常検知してから実際に通報するまでの猶予期間を秒単位で入力してください"
+        android:dialogTitle="通報までの時間（秒）"
+        android:key="@string/key_delay"
+        android:numeric="integer"
+        android:summary="..."
+        android:title="通報までの時間（秒）" />
+
+    <EditTextPreference
+        android:defaultValue="@string/default_server"
+        android:dialogMessage="sugo-hub の URL を入力してください"
+        android:dialogTitle="サーバーアドレス"
+        android:key="@string/key_server"
+        android:summary="..."
+        android:title="サーバーアドレス" />
+
+    <EditTextPreference
+        android:defaultValue="@string/default_actor_suffix"
+        android:dialogMessage="ID を入力してください\nsugo-actor としてのキーは先頭に固定のアクタータグを付けたものになります"
+        android:dialogTitle="クライアント ID"
+        android:key="@string/key_actor_suffix"
+        android:summary="..."
+        android:title="クライアント ID" />
+
+    <EditTextPreference
+        android:defaultValue="@string/default_timer"
+        android:dialogMessage="異常検知イベントを強制的に発生させるまでの秒数を入力してください"
+        android:dialogTitle="タイマー（秒）"
+        android:key="@string/key_timer"
+        android:numeric="integer"
+        android:summary="..."
+        android:title="タイマー（秒）" />
+
+</PreferenceScreen>

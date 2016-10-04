@@ -380,7 +380,6 @@ public class MainActivity extends AppCompatActivity {
         final CountDownLatch endFlag = new CountDownLatch(1);
         final Socket socket = (new Manager(URI.create(server))).socket(NAMESPACE);
         try {
-            final CountDownLatch startFlag = new CountDownLatch(1);
             socket.on(Socket.EVENT_CONNECT, args -> {
                 Log.d(LOG_TAG, socket.id() + " connected to " + server);
                 processAfterConnection(socket, endFlag);

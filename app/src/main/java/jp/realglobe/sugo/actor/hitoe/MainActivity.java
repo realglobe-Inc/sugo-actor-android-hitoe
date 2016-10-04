@@ -21,6 +21,8 @@ import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
+import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -47,6 +49,7 @@ import java.util.concurrent.Future;
 import io.socket.client.Ack;
 import io.socket.client.Manager;
 import io.socket.client.Socket;
+import jp.ne.docomo.smt.dev.hitoetransmitter.sdk.HitoeSdkAPIImpl;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -65,11 +68,11 @@ public class MainActivity extends AppCompatActivity {
     private static final String KEY_MODULE = "module";
     private static final String KEY_EVENT = "event";
     private static final String KEY_DATA = "data";
-    private static final String KEY_HEART_RATE = "heartRate";
+    private static final String KEY_HEART_RATE = "heartrate";
     private static final String KEY_LOCATION = "location";
 
     private final ExecutorService executor = Executors.newCachedThreadPool();
-    private BlockingQueue<String> eventQueue = new ArrayBlockingQueue<>(1);
+    private final BlockingQueue<String> eventQueue = new ArrayBlockingQueue<>(1);
     private Handler handler;
     private Handler timerHandler;
     private CountDownTimer callTimer;
@@ -94,7 +97,12 @@ public class MainActivity extends AppCompatActivity {
 
     private Future<?> reporter;
 
-    private volatile int heartRate;
+    private volatile int heartrate;
+    private volatile TextView heartrateView;
+
+    private static HitoeWrapper hitoe;
+    private boolean hitoeReady;
+    private Button hitoeSettingButton;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -104,7 +112,7 @@ public class MainActivity extends AppCompatActivity {
         this.timerHandler = new Handler();
         this.vibrator = (Vibrator) getSystemService(VIBRATOR_SERVICE);
         this.ringtone = RingtoneManager.getRingtone(this, RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM));
-        checkLocationPermission();
+        checkPermission();
 
         this.googleApiClient = new GoogleApiClient.Builder(this)
                 .addApi(LocationServices.API)
@@ -116,9 +124,74 @@ public class MainActivity extends AppCompatActivity {
 
         this.executor.submit(this::runForEvent);
         Log.d(LOG_TAG, "Event waiter started");
+
+        hitoe = new HitoeWrapper(HitoeSdkAPIImpl.getInstance(this.getApplicationContext()));
+        hitoe.setHeartrateReceiver(heartrate -> {
+            synchronized (MainActivity.this) {
+                if (!MainActivity.this.hitoeReady) {
+                    MainActivity.this.hitoeReady = true;
+                    handler.post(() -> {
+                        synchronized (MainActivity.this) {
+                            if (MainActivity.this.hitoeReady) {
+                                this.disableHitoeSetting();
+                            }
+                        }
+                    });
+                }
+            }
+            MainActivity.this.heartrate = heartrate;
+            MainActivity.this.heartrateView.post(() -> MainActivity.this.heartrateView.setText(Integer.toString(heartrate)));
+        });
+        hitoe.setDisconnectCallback(() -> {
+            synchronized (MainActivity.this) {
+                MainActivity.this.hitoeReady = false;
+                handler.post(() -> {
+                    synchronized (MainActivity.this) {
+                        if (!MainActivity.this.hitoeReady) {
+                            this.enableHitoeSetting();
+                        }
+                    }
+                });
+            }
+        });
     }
 
-    private void checkLocationPermission() {
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        this.executor.shutdownNow();
+    }
+
+    /**
+     * hitoe の準備画面に移るボタンを有効にする
+     */
+    private synchronized void enableHitoeSetting() {
+        if (this.hitoeSettingButton == null) {
+            return;
+        }
+        this.hitoeSettingButton.setEnabled(true);
+        this.hitoeSettingButton.setVisibility(View.VISIBLE);
+    }
+
+    /**
+     * hitoe の準備画面に移るボタンを無効にする
+     */
+    private synchronized void disableHitoeSetting() {
+        if (this.hitoeSettingButton == null) {
+            return;
+        }
+        this.hitoeSettingButton.setEnabled(false);
+        this.hitoeSettingButton.setVisibility(View.INVISIBLE);
+    }
+
+    static HitoeWrapper getHitoe() {
+        return hitoe;
+    }
+
+    /**
+     * 必要な許可を取得しているか調べて、取得していなかったら要求する
+     */
+    private void checkPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             // 位置情報には許可が必要。
             this.requestPermissions(new String[]{
@@ -126,7 +199,7 @@ public class MainActivity extends AppCompatActivity {
                     Manifest.permission.ACCESS_COARSE_LOCATION,
             }, requestCode);
         } else {
-            showLocationNotice(true);
+            showPermissionStatus(true);
         }
     }
 
@@ -147,15 +220,25 @@ public class MainActivity extends AppCompatActivity {
             required.remove(permissions[i]);
         }
 
-        showLocationNotice(required.isEmpty());
+        showPermissionStatus(required.isEmpty());
     }
 
-    private void showLocationNotice(boolean allowed) {
+    /**
+     * 許可が取得状態を表示する
+     *
+     * @param allowed 取得できているなら true
+     */
+    private void showPermissionStatus(boolean allowed) {
         final String message;
         if (allowed) {
-            message = "救助要請に位置情報を付加できます";
+            message = "心拍数のモニタリングと救助要請への位置情報の付加が可能です";
+            synchronized (this) {
+                if (this.hitoeReady) {
+                    enableHitoeSetting();
+                }
+            }
         } else {
-            message = "救助要請に位置情報を付加することができません\nメニューから許可設定を行ってください";
+            message = "心拍数のモニタリングと救助要請への位置情報の付加ができません\nメニューから許可設定を行ってください";
         }
         Toast.makeText(this, message, Toast.LENGTH_LONG).show();
     }
@@ -176,6 +259,7 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         public void onConnectionSuspended(int i) {
+            Log.d(LOG_TAG, "Location monitor suspended");
         }
 
         @Override
@@ -193,6 +277,7 @@ public class MainActivity extends AppCompatActivity {
                 .setPositiveButton("終了させる", (dialog, which) -> super.onBackPressed())
                 .show();
     }
+
 
     /**
      * 異常検知イベントを受け取って警告状態に遷移させる。
@@ -222,16 +307,15 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        if (item.getItemId() == R.id.action_settings) {
-            Intent intent = new Intent(this, SettingsActivity.class);
-            startActivity(intent);
-        } else if (item.getItemId() == R.id.action_allow) {
-            checkLocationPermission();
-        } else if (item.getItemId() == R.id.action_reset) {
+        if (item.getItemId() == R.id.item_settings) {
+            startActivity(new Intent(this, SettingsActivity.class));
+        } else if (item.getItemId() == R.id.item_allow) {
+            checkPermission();
+        } else if (item.getItemId() == R.id.item_reset) {
             reset();
-        } else if (item.getItemId() == R.id.action_call) {
+        } else if (item.getItemId() == R.id.item_call) {
             callAfterDialog();
-        } else if (item.getItemId() == R.id.action_timer_start) {
+        } else if (item.getItemId() == R.id.item_timer_start) {
             startEventTimer();
         }
         return super.onOptionsItemSelected(item);
@@ -258,6 +342,16 @@ public class MainActivity extends AppCompatActivity {
             }
             this.reporter = null;
         }
+        this.hitoeSettingButton = (Button) findViewById(R.id.button_hitoe_setting);
+        this.hitoeSettingButton.setOnClickListener(v -> {
+            startActivity(new Intent(this, HitoeSettingActivity.class));
+        });
+        if (this.hitoeReady) {
+            disableHitoeSetting();
+        } else {
+            enableHitoeSetting();
+        }
+        this.heartrateView = (TextView) findViewById(R.id.text_heartrate_value);
 
         Log.d(LOG_TAG, "Mode was reset");
     }
@@ -287,7 +381,7 @@ public class MainActivity extends AppCompatActivity {
         this.callTimer = new CountDownTimer(1_000L * delay, 100) {
             @Override
             public void onTick(long l) {
-                ((TextView) findViewById(R.id.counter_count)).setText(Integer.toString((int) Math.ceil(l / 1_000.0)));
+                ((TextView) findViewById(R.id.text_counter_count)).setText(Integer.toString((int) Math.ceil(l / 1_000.0)));
             }
 
             @Override
@@ -311,6 +405,7 @@ public class MainActivity extends AppCompatActivity {
         if (this.reporter == null) {
             this.reporter = this.executor.submit(this::runForReport);
         }
+        this.heartrateView = (TextView) findViewById(R.id.text_heartrate_value);
 
         Log.d(LOG_TAG, "Warning mode started");
     }
@@ -338,6 +433,7 @@ public class MainActivity extends AppCompatActivity {
         if (this.reporter == null) {
             this.reporter = this.executor.submit(this::runForReport);
         }
+        this.heartrateView = (TextView) findViewById(R.id.text_heartrate_value);
 
         Log.d(LOG_TAG, "Emergency mode started");
     }
@@ -393,7 +489,7 @@ public class MainActivity extends AppCompatActivity {
 
             while (true) {
                 final Map<String, Object> data2 = new HashMap<>();
-                data2.put(KEY_HEART_RATE, this.heartRate);
+                data2.put(KEY_HEART_RATE, this.heartrate);
                 final Location curLocation = this.location;
                 if (curLocation != null) {
                     data2.put(KEY_LOCATION, Arrays.asList(curLocation.getLatitude(), curLocation.getLongitude(), curLocation.getAltitude()));

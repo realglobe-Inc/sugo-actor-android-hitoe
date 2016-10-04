@@ -8,5 +8,11 @@
 /captures
 .externalNativeBuild
 
+# hitoe library
+app/libs
+app/src/main/jniLibs
+
 node_modules
 var
+
+.idea/dictionaries

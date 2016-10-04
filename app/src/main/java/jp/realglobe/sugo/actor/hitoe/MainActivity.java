@@ -52,6 +52,8 @@ public class MainActivity extends AppCompatActivity {
 
     private static final String LOG_TAG = MainActivity.class.getName();
 
+    private static final long REPORT_INTERVAL = 1_000;
+
     private static final String NAMESPACE = "/actors";
 
     private static final String KEY_KEY = "key";
@@ -404,7 +406,7 @@ public class MainActivity extends AppCompatActivity {
                 }
                 Log.d(LOG_TAG, socket.id() + " sent report");
 
-                Thread.sleep(1_000);
+                Thread.sleep(REPORT_INTERVAL);
             }
         } catch (InterruptedException e) {
             // 終了

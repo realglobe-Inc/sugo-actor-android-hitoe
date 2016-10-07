@@ -18,7 +18,7 @@ public class SettingsPreferenceFragment extends PreferenceFragment {
 
     private final Set<String> showDefaultKeys = new HashSet<>();
 
-    private SharedPreferences.OnSharedPreferenceChangeListener changeListenter;
+    private SharedPreferences.OnSharedPreferenceChangeListener changeListener;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -27,13 +27,14 @@ public class SettingsPreferenceFragment extends PreferenceFragment {
         showDefaultKeys.addAll(Arrays.asList(
                 getString(R.string.key_delay),
                 getString(R.string.key_server),
-                getString(R.string.key_timer),
-                getString(R.string.key_actor_suffix)
+                getString(R.string.key_report_interval),
+                getString(R.string.key_actor_suffix),
+                getString(R.string.key_timer)
         ));
 
         addPreferencesFromResource(R.xml.activity_settings);
         showDefaults();
-        changeListenter = (sharedPreferences, key) -> {
+        changeListener = (sharedPreferences, key) -> {
             if (showDefaultKeys.contains(key)) {
                 showDefault(key);
             }
@@ -44,14 +45,14 @@ public class SettingsPreferenceFragment extends PreferenceFragment {
     public void onResume() {
         super.onResume();
         SharedPreferences sharedPreferences = getPreferenceScreen().getSharedPreferences();
-        sharedPreferences.registerOnSharedPreferenceChangeListener(changeListenter);
+        sharedPreferences.registerOnSharedPreferenceChangeListener(changeListener);
     }
 
     @Override
     public void onPause() {
         super.onPause();
         SharedPreferences sharedPreferences = getPreferenceScreen().getSharedPreferences();
-        sharedPreferences.unregisterOnSharedPreferenceChangeListener(changeListenter);
+        sharedPreferences.unregisterOnSharedPreferenceChangeListener(changeListener);
     }
 
     /**

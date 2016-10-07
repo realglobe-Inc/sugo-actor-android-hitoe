@@ -10,6 +10,10 @@
         android:orderInCategory="150"
         android:title="@string/item_allow" />
     <item
+        android:id="@+id/item_hitoe_settings"
+        android:orderInCategory="150"
+        android:title="@string/item_hitoe_settings" />
+    <item
         android:id="@+id/item_reset"
         android:orderInCategory="200"
         android:title="@string/item_reset" />

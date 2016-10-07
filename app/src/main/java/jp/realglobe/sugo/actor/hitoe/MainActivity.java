@@ -2,6 +2,8 @@ package jp.realglobe.sugo.actor.hitoe;
 
 import android.Manifest;
 import android.app.AlertDialog;
+import android.app.Dialog;
+import android.app.DialogFragment;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
@@ -37,14 +39,9 @@ import java.net.URI;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 
 import io.socket.client.Ack;
 import io.socket.client.Manager;
@@ -55,10 +52,9 @@ public class MainActivity extends AppCompatActivity {
 
     private static final String LOG_TAG = MainActivity.class.getName();
 
-    private static final long REPORT_INTERVAL = 1_000;
-
     private static final String NAMESPACE = "/actors";
 
+    // 送信データのキー
     private static final String KEY_KEY = "key";
     private static final String KEY_NAME = "name";
     private static final String KEY_SPEC = "spec";
@@ -71,122 +67,113 @@ public class MainActivity extends AppCompatActivity {
     private static final String KEY_HEART_RATE = "heartrate";
     private static final String KEY_LOCATION = "location";
 
-    private final ExecutorService executor = Executors.newCachedThreadPool();
-    private final BlockingQueue<String> eventQueue = new ArrayBlockingQueue<>(1);
-    private Handler handler;
-    private Handler timerHandler;
-    private CountDownTimer callTimer;
-
+    // 状態
     private enum State {
         MAIN,
         WARNING,
         EMERGENCY,
     }
 
-    private volatile State state = State.MAIN;
+    private final int permissionRequestCode = (int) (Integer.MAX_VALUE * Math.random());
 
     private Vibrator vibrator;
     private Ringtone ringtone;
-    private final int requestCode = (int) (Integer.MAX_VALUE * Math.random());
-
     private GoogleApiClient googleApiClient;
+    private static HitoeWrapper hitoe;
+
+    private Handler handler;
+    private Handler timerHandler;
+    private CountDownTimer callTimer;
+
+    private volatile State state = State.MAIN;
+
+    // 現在位置
     private volatile Location location;
-
-    private static final String EVENT_WARNING = State.WARNING.name().toLowerCase();
-    private static final String EVENT_EMERGENCY = State.EMERGENCY.name().toLowerCase();
-
-    private Future<?> reporter;
-
+    // hitoe の準備が終わっているか
+    private boolean hitoeReady;
+    // 計測した心拍数
     private volatile int heartrate;
+    // 心拍数を表示する部品
     private volatile TextView heartrateView;
 
-    private static HitoeWrapper hitoe;
-    private boolean hitoeReady;
-    private Button hitoeSettingButton;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        this.handler = new Handler();
-        this.timerHandler = new Handler();
         this.vibrator = (Vibrator) getSystemService(VIBRATOR_SERVICE);
         this.ringtone = RingtoneManager.getRingtone(this, RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM));
-        checkPermission();
-
         this.googleApiClient = new GoogleApiClient.Builder(this)
                 .addApi(LocationServices.API)
                 .addConnectionCallbacks(new MyLocationListener())
                 .addOnConnectionFailedListener(connectionResult -> Log.w(LOG_TAG, "Location detection error: " + connectionResult))
                 .build();
-
-        reset();
-
-        this.executor.submit(this::runForEvent);
-        Log.d(LOG_TAG, "Event waiter started");
-
         hitoe = new HitoeWrapper(HitoeSdkAPIImpl.getInstance(this.getApplicationContext()));
-        hitoe.setHeartrateReceiver(heartrate -> {
-            synchronized (MainActivity.this) {
-                if (!MainActivity.this.hitoeReady) {
-                    MainActivity.this.hitoeReady = true;
+        hitoe.setHeartrateReceiver(() -> {
+            synchronized (this) {
+                // メイン画面から hitoe の準備画面に移るためのボタンを消す
+                if (!this.hitoeReady) {
+                    this.hitoeReady = true;
                     handler.post(() -> {
-                        synchronized (MainActivity.this) {
-                            if (MainActivity.this.hitoeReady) {
+                        synchronized (this) {
+                            if (this.hitoeReady) {
                                 this.disableHitoeSetting();
                             }
                         }
                     });
                 }
             }
-            MainActivity.this.heartrate = heartrate;
-            MainActivity.this.heartrateView.post(() -> MainActivity.this.heartrateView.setText(Integer.toString(heartrate)));
+        }, heartrate -> {
+            this.heartrate = heartrate;
+            this.heartrateView.post(() -> this.heartrateView.setText(String.format(Locale.US, "%d", heartrate)));
         });
         hitoe.setDisconnectCallback(() -> {
-            synchronized (MainActivity.this) {
-                MainActivity.this.hitoeReady = false;
+            synchronized (this) {
+                // メイン画面に hitoe の準備画面に移るためのボタンを出す
+                this.hitoeReady = false;
                 handler.post(() -> {
-                    synchronized (MainActivity.this) {
-                        if (!MainActivity.this.hitoeReady) {
+                    synchronized (this) {
+                        if (!this.hitoeReady) {
                             this.enableHitoeSetting();
                         }
                     }
                 });
             }
         });
-    }
+        this.handler = new Handler();
+        this.timerHandler = new Handler();
 
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        this.executor.shutdownNow();
+        // 画面を初期化
+        reset();
+
+        // 必要な許可を取得できているか調べる
+        checkPermission();
     }
 
     /**
      * hitoe の準備画面に移るボタンを有効にする
      */
-    private synchronized void enableHitoeSetting() {
-        if (this.hitoeSettingButton == null) {
+    private void enableHitoeSetting() {
+        final Button button = (Button) findViewById(R.id.button_hitoe_setting);
+        if (button == null) {
             return;
         }
-        this.hitoeSettingButton.setEnabled(true);
-        this.hitoeSettingButton.setVisibility(View.VISIBLE);
+        button.setEnabled(true);
+        button.setVisibility(View.VISIBLE);
     }
 
     /**
      * hitoe の準備画面に移るボタンを無効にする
      */
-    private synchronized void disableHitoeSetting() {
-        if (this.hitoeSettingButton == null) {
+    private void disableHitoeSetting() {
+        final Button button = (Button) findViewById(R.id.button_hitoe_setting);
+        if (button == null) {
             return;
         }
-        this.hitoeSettingButton.setEnabled(false);
-        this.hitoeSettingButton.setVisibility(View.INVISIBLE);
+        button.setEnabled(false);
+        button.setVisibility(View.INVISIBLE);
     }
 
-    static HitoeWrapper getHitoe() {
-        return hitoe;
-    }
 
     /**
      * 必要な許可を取得しているか調べて、取得していなかったら要求する
@@ -197,7 +184,7 @@ public class MainActivity extends AppCompatActivity {
             this.requestPermissions(new String[]{
                     Manifest.permission.ACCESS_FINE_LOCATION,
                     Manifest.permission.ACCESS_COARSE_LOCATION,
-            }, requestCode);
+            }, this.permissionRequestCode);
         } else {
             showPermissionStatus(true);
         }
@@ -205,7 +192,7 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        if (requestCode != this.requestCode) {
+        if (requestCode != this.permissionRequestCode) {
             return;
         }
 
@@ -224,25 +211,28 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
-     * 許可が取得状態を表示する
+     * 許可の取得状態を表示する
      *
      * @param allowed 取得できているなら true
      */
     private void showPermissionStatus(boolean allowed) {
         final String message;
         if (allowed) {
-            message = "心拍数のモニタリングと救助要請への位置情報の付加が可能です";
+            message = "心拍数の測定と救助要請への位置情報の付加が可能です";
             synchronized (this) {
-                if (this.hitoeReady) {
+                if (!this.hitoeReady) {
                     enableHitoeSetting();
                 }
             }
         } else {
-            message = "心拍数のモニタリングと救助要請への位置情報の付加ができません\nメニューから許可設定を行ってください";
+            message = "心拍数の測定と救助要請への位置情報の付加ができません\nメニューから許可設定を行ってください";
         }
         Toast.makeText(this, message, Toast.LENGTH_LONG).show();
     }
 
+    /**
+     * 位置情報のリスナー
+     */
     private class MyLocationListener implements ConnectionCallbacks, LocationListener {
 
         @Override
@@ -272,28 +262,24 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public void onBackPressed() {
-        (new AlertDialog.Builder(this))
-                .setTitle("終了させますか？")
-                .setPositiveButton("終了させる", (dialog, which) -> super.onBackPressed())
-                .show();
+        (new FinishDialog()).show(getFragmentManager(), "dialog");
     }
 
+    private void superOnBackPressed() {
+        super.onBackPressed();
+    }
 
     /**
-     * 異常検知イベントを受け取って警告状態に遷移させる。
-     * 別スレッドで実行される。
+     * 終了確認ダイアログ
      */
-    private void runForEvent() {
-        while (true) {
-            final String event;
-            try {
-                event = this.eventQueue.take();
-            } catch (InterruptedException e) {
-                // 終了
-                break;
-            }
-            Log.d(LOG_TAG, "Received emergency event " + event);
-            this.handler.post(this::warn);
+    public static class FinishDialog extends DialogFragment {
+        @Override
+        public Dialog onCreateDialog(Bundle savedInstanceState) {
+            final MainActivity activity = (MainActivity) getActivity();
+            return (new AlertDialog.Builder(activity))
+                    .setTitle("終了させますか？")
+                    .setPositiveButton("終了させる", (dialog, which) -> activity.superOnBackPressed())
+                    .create();
         }
     }
 
@@ -311,6 +297,8 @@ public class MainActivity extends AppCompatActivity {
             startActivity(new Intent(this, SettingsActivity.class));
         } else if (item.getItemId() == R.id.item_allow) {
             checkPermission();
+        } else if (item.getItemId() == R.id.item_hitoe_settings) {
+            startActivity(new Intent(this, HitoeSettingActivity.class));
         } else if (item.getItemId() == R.id.item_reset) {
             reset();
         } else if (item.getItemId() == R.id.item_call) {
@@ -332,26 +320,18 @@ public class MainActivity extends AppCompatActivity {
             this.callTimer.cancel();
             this.callTimer = null;
         }
-        this.eventQueue.clear();
         this.vibrator.cancel();
         this.ringtone.stop();
         this.googleApiClient.disconnect();
-        if (this.reporter != null) {
-            if ((!this.reporter.isDone()) && (!this.reporter.isCancelled())) {
-                this.reporter.cancel(true);
-            }
-            this.reporter = null;
-        }
-        this.hitoeSettingButton = (Button) findViewById(R.id.button_hitoe_setting);
-        this.hitoeSettingButton.setOnClickListener(v -> {
-            startActivity(new Intent(this, HitoeSettingActivity.class));
-        });
+        final Button hitoeSettingButton = (Button) findViewById(R.id.button_hitoe_setting);
+        hitoeSettingButton.setOnClickListener(v -> startActivity(new Intent(this, HitoeSettingActivity.class)));
         if (this.hitoeReady) {
             disableHitoeSetting();
         } else {
             enableHitoeSetting();
         }
         this.heartrateView = (TextView) findViewById(R.id.text_heartrate_value);
+        this.heartrateView.setText(String.format(Locale.US, "%d", heartrate));
 
         Log.d(LOG_TAG, "Mode was reset");
     }
@@ -364,24 +344,24 @@ public class MainActivity extends AppCompatActivity {
             // 初期状態からのみ
             return;
         }
+
+        final SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
+        final long delay = Long.parseLong(sharedPreferences.getString(getString(R.string.key_delay), getString(R.string.default_delay)));
+
         setContentView(R.layout.activity_warning);
         this.state = State.WARNING;
         this.timerHandler.removeCallbacksAndMessages(null);
         if (this.callTimer != null) {
             this.callTimer.cancel();
         }
-        this.eventQueue.clear();
-
-        final SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
-        final int delay = Integer.parseInt(sharedPreferences.getString(getString(R.string.key_delay), getString(R.string.default_delay)));
-
-        this.vibrator.vibrate(new long[]{500, 1_000}, 0);
-        this.ringtone.play();
-
         this.callTimer = new CountDownTimer(1_000L * delay, 100) {
             @Override
             public void onTick(long l) {
-                ((TextView) findViewById(R.id.text_counter_count)).setText(Integer.toString((int) Math.ceil(l / 1_000.0)));
+                final TextView view = (TextView) findViewById(R.id.text_counter_count);
+                if (view == null) {
+                    return;
+                }
+                view.setText(String.format(Locale.US, "%d", (int) Math.ceil(l / 1_000.0)));
             }
 
             @Override
@@ -390,24 +370,42 @@ public class MainActivity extends AppCompatActivity {
             }
         };
         this.callTimer.start();
-        findViewById(R.id.button_call).setOnClickListener(view -> callAfterDialog());
-        findViewById(R.id.button_stop).setOnClickListener(view -> (new AlertDialog.Builder(this))
-                .setTitle("異常はありませんか？")
-                .setPositiveButton("異常無し", (dialog, which) -> {
-                    if (state == State.WARNING) {
-                        reset();
-                    }
-                })
-                .show());
 
-        this.googleApiClient.connect();
-
-        if (this.reporter == null) {
-            this.reporter = this.executor.submit(this::runForReport);
+        this.vibrator.vibrate(new long[]{500, 1_000}, 0);
+        this.ringtone.play();
+        if (!(this.googleApiClient.isConnecting() || this.googleApiClient.isConnected())) {
+            this.googleApiClient.connect();
         }
+
+        findViewById(R.id.button_call).setOnClickListener(view -> callAfterDialog());
+        findViewById(R.id.button_stop).setOnClickListener(view -> (new CancelDialog()).show(getFragmentManager(), "dialog"));
+
         this.heartrateView = (TextView) findViewById(R.id.text_heartrate_value);
+        this.heartrateView.setText(String.format(Locale.US, "%d", heartrate));
+
+        startReport();
 
         Log.d(LOG_TAG, "Warning mode started");
+    }
+
+    /**
+     * 通報キャンセルダイアログ
+     */
+    public static class CancelDialog extends DialogFragment {
+        @Override
+        public Dialog onCreateDialog(Bundle savedInstanceState) {
+            final MainActivity activity = (MainActivity) getActivity();
+            return (new AlertDialog.Builder(activity))
+                    .setTitle("異常はありませんか？")
+                    .setPositiveButton("異常無し", (dialog, which) -> {
+                        synchronized (activity) {
+                            if (activity.state == State.WARNING) {
+                                activity.reset();
+                            }
+                        }
+                    })
+                    .create();
+        }
     }
 
     /**
@@ -424,16 +422,15 @@ public class MainActivity extends AppCompatActivity {
             this.callTimer.cancel();
             this.callTimer = null;
         }
-        this.eventQueue.clear();
         this.vibrator.cancel();
         this.ringtone.stop();
-        if (!(this.googleApiClient.isConnecting() && this.googleApiClient.isConnected())) {
+        if (!(this.googleApiClient.isConnecting() || this.googleApiClient.isConnected())) {
             this.googleApiClient.connect();
         }
-        if (this.reporter == null) {
-            this.reporter = this.executor.submit(this::runForReport);
-        }
         this.heartrateView = (TextView) findViewById(R.id.text_heartrate_value);
+        this.heartrateView.setText(String.format(Locale.US, "%d", heartrate));
+
+        startReport();
 
         Log.d(LOG_TAG, "Emergency mode started");
     }
@@ -442,90 +439,77 @@ public class MainActivity extends AppCompatActivity {
      * ダイアログで確認してから救助要請する
      */
     private void callAfterDialog() {
-        (new AlertDialog.Builder(this))
-                .setTitle("救助を要請しますか？")
-                .setPositiveButton("要請する", (dialog, which) -> call())
-                .show();
+        (new CallDialog()).show(getFragmentManager(), "dialog");
+    }
+
+    /**
+     * 通報ダイアログ
+     */
+    public static class CallDialog extends DialogFragment {
+        @Override
+        public Dialog onCreateDialog(Bundle savedInstanceState) {
+            final MainActivity activity = (MainActivity) getActivity();
+            return (new AlertDialog.Builder(activity))
+                    .setTitle("救助を要請しますか？")
+                    .setPositiveButton("要請する", (dialog, which) -> activity.call())
+                    .create();
+        }
     }
 
     /**
      * 異常検知イベントを発生させるタイマーを作動させる
      */
     private synchronized void startEventTimer() {
-        this.timerHandler.removeCallbacksAndMessages(null);
-
         final SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
-        final long delay = 1_000L * Integer.parseInt(sharedPreferences.getString(getString(R.string.key_timer), getString(R.string.default_timer)));
+        final long delay = 1_000 * Long.parseLong(sharedPreferences.getString(getString(R.string.key_timer), getString(R.string.default_timer)));
+
+        this.timerHandler.removeCallbacksAndMessages(null);
         this.timerHandler.postDelayed(() -> {
-            MainActivity.this.eventQueue.offer("dummy");
-            Log.d(LOG_TAG, "Dummy emergency event was generated");
+            warn();
+            Log.d(LOG_TAG, "Dummy emergency was triggered");
         }, delay);
         Log.d(LOG_TAG, "Event timer started");
     }
 
-    private String actorKey;
-
     /**
-     * 現状をサーバーに報告する
+     * サーバーへの報告を始める
      */
-    private void runForReport() {
+    private void startReport() {
         final SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
         final String server = sharedPreferences.getString(getString(R.string.key_server), getString(R.string.default_server));
-        this.actorKey = getString(R.string.actor_prefix) + sharedPreferences.getString(getString(R.string.key_actor_suffix), getString(R.string.default_actor_suffix));
+        final String actorKey = getString(R.string.actor_prefix) + sharedPreferences.getString(getString(R.string.key_actor_suffix), getString(R.string.default_actor_suffix));
+        final long interval = 1_000L * Long.parseLong(sharedPreferences.getString(getString(R.string.key_report_interval), getString(R.string.default_report_interval)));
 
-        final CountDownLatch endFlag = new CountDownLatch(1);
         final Socket socket = (new Manager(URI.create(server))).socket(NAMESPACE);
-        try {
-            socket.on(Socket.EVENT_CONNECT, args -> {
-                Log.d(LOG_TAG, socket.id() + " connected to " + server);
-                processAfterConnection(socket, endFlag);
-            });
-            socket.on(Socket.EVENT_DISCONNECT, args -> {
-                Log.d(LOG_TAG, socket.id() + " disconnected from " + server);
-            });
-            socket.connect();
-
-            endFlag.await();
-
-            while (true) {
-                final Map<String, Object> data2 = new HashMap<>();
-                data2.put(KEY_HEART_RATE, this.heartrate);
-                final Location curLocation = this.location;
-                if (curLocation != null) {
-                    data2.put(KEY_LOCATION, Arrays.asList(curLocation.getLatitude(), curLocation.getLongitude(), curLocation.getAltitude()));
-                }
-                if (this.state == State.WARNING) {
-                    emit(socket, EVENT_WARNING, data2);
-                } else if (this.state == State.EMERGENCY) {
-                    emit(socket, EVENT_EMERGENCY, data2);
-                }
-                Log.d(LOG_TAG, socket.id() + " sent report");
-
-                Thread.sleep(REPORT_INTERVAL);
-            }
-        } catch (InterruptedException e) {
-            // 終了
-        } finally {
-            endFlag.countDown();
-            socket.close();
-        }
+        socket.on(Socket.EVENT_CONNECT, args -> {
+            Log.d(LOG_TAG, "Connected to " + server);
+            processAfterConnection(socket, actorKey, interval);
+        });
+        socket.on(Socket.EVENT_DISCONNECT, args -> {
+            Log.d(LOG_TAG, "Disconnected from " + server);
+        });
+        socket.connect();
     }
 
-    private void processAfterConnection(Socket socket, CountDownLatch endFlag) {
-        if (endFlag.getCount() == 0) {
+    private void processAfterConnection(Socket socket, String actorKey, long interval) {
+        if (this.state == State.MAIN) {
+            // 終了
+            socket.disconnect();
             return;
         }
 
         final Map<String, Object> data = new HashMap<>();
-        data.put(KEY_KEY, this.actorKey);
+        data.put(KEY_KEY, actorKey);
         socket.emit(SocketConstants.GreetingEvents.HI, new JSONObject(data), (Ack) args -> {
             Log.d(LOG_TAG, socket.id() + " greeted");
-            processAfterGreeting(socket, endFlag);
+            processAfterGreeting(socket, actorKey, interval);
         });
     }
 
-    private void processAfterGreeting(Socket socket, CountDownLatch endFlag) {
-        if (endFlag.getCount() == 0) {
+    private void processAfterGreeting(Socket socket, String actorKey, long interval) {
+        if (this.state == State.MAIN) {
+            // 終了
+            socket.disconnect();
             return;
         }
 
@@ -545,19 +529,48 @@ public class MainActivity extends AppCompatActivity {
 
         socket.emit(SocketConstants.RemoteEvents.SPEC, new JSONObject(data), (Ack) args -> {
             Log.d(LOG_TAG, socket.id() + " sent specification");
-            endFlag.countDown();
+            report(socket, actorKey, interval);
         });
     }
 
-    private void emit(Socket socket, String event, Map<String, Object> data) {
+    private void report(Socket socket, String actorKey, long interval) {
+        final State state1 = this.state;
+        if (state1 == State.MAIN) {
+            // 終了
+            socket.disconnect();
+            return;
+        }
+
+        final Map<String, Object> data = new HashMap<>();
+        data.put(KEY_HEART_RATE, this.heartrate);
+        final Location curLocation = this.location;
+        if (curLocation != null) {
+            data.put(KEY_LOCATION, Arrays.asList(curLocation.getLatitude(), curLocation.getLongitude(), curLocation.getAltitude()));
+        }
+        emit(socket, actorKey, state1.name().toLowerCase(), data);
+        Log.d(LOG_TAG, socket.id() + " sent report");
+
+        this.handler.postDelayed(() -> report(socket, actorKey, interval), interval);
+    }
+
+    private void emit(Socket socket, String actorKey, String event, Map<String, Object> data) {
         final Map<String, Object> wrapData = new HashMap<>();
-        wrapData.put(KEY_KEY, this.actorKey);
+        wrapData.put(KEY_KEY, actorKey);
         wrapData.put(KEY_MODULE, getString(R.string.module));
         wrapData.put(KEY_EVENT, event);
         if (data != null) {
             wrapData.put(KEY_DATA, data);
         }
         socket.emit(SocketConstants.RemoteEvents.PIPE, new JSONObject(wrapData));
+    }
+
+    /**
+     * hitoe のドライバを返す
+     *
+     * @return hitoe のドライバ
+     */
+    static HitoeWrapper getHitoe() {
+        return hitoe;
     }
 
 }

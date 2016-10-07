@@ -31,7 +31,9 @@
             </intent-filter>
         </activity>
         <activity android:name=".SettingsActivity" />
-        <activity android:name=".HitoeSettingActivity"></activity>
+        <activity
+            android:name=".HitoeSettingActivity"
+            android:configChanges="orientation|screenSize" />
     </application>
 
 </manifest>

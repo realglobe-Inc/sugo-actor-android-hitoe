@@ -31,6 +31,10 @@
     <string name="key_prefix_hitoe_pincode">prefix_hitoe_pincode</string>
     <string name="button_hitoe_setting">心拍センサーと接続</string>
     <string name="button_back">戻る</string>
-    <string name="text_hitoe_header">hitoe との接続状態</string>
+    <string name="text_hitoe_header">心拍センサーとの接続状態</string>
     <string name="text_hitoe_message">接続を始めます</string>
+    <string name="key_report_interval">report_interval</string>
+    <string name="default_report_interval">1</string>
+    <string name="item_hitoe_settings" type="id">心拍センサー設定</string>
+    <string name="button_search">心拍センサーを探し直す</string>
 </resources>

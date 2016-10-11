@@ -81,6 +81,7 @@ class HitoeWrapper {
 
     private static final String DATA_HR_COLUMN_SEPARATOR = ",";
     private static final int DATA_HR_COLUMN_NUMBER = 2;
+    private static final int DATE_HR_TIMESTAMP_COLUMN = 0;
     private static final int DATA_HR_BPM_COLUMN = 1;
 
 
@@ -112,6 +113,16 @@ class HitoeWrapper {
          * @param result 接続結果
          */
         void call(ConnectResult result);
+    }
+
+    interface HeartrateReceiver {
+        /**
+         * 心拍数を受け取る
+         *
+         * @param date      ミリ秒単位の UNIX 時間
+         * @param heartrate 心拍数
+         */
+        void receive(long date, int heartrate);
     }
 
     private interface InnerStatusCallback {
@@ -449,15 +460,17 @@ class HitoeWrapper {
         };
         final int responseId = this.core.addReceiver(this.session.first, new String[]{DATA_KEY_HR}, (connection, responseId1, dataKey, data) -> {
             final String[] rows = data.split(ROW_SEPARATOR);
-            final String[] columns = rows[rows.length - 1].split(DATA_HR_COLUMN_SEPARATOR);
+            final String[] columns = rows[rows.length - 1].split(DATA_HR_COLUMN_SEPARATOR); // 最新の値だけ使う
             if (columns.length < DATA_HR_COLUMN_NUMBER) {
                 return;
             }
-            int heartrate = (int) Double.parseDouble(columns[DATA_HR_BPM_COLUMN]);
             final HeartrateReceiver receiver = this.heartrateReceiver;
-            if (receiver != null) {
-                receiver.receive(heartrate);
+            if (receiver == null) {
+                return;
             }
+            long date = Long.parseLong(columns[DATE_HR_TIMESTAMP_COLUMN]);
+            int heartrate = (int) Double.parseDouble(columns[DATA_HR_BPM_COLUMN]);
+            receiver.receive(date, heartrate);
         }, "", "");
         if (responseId != RES_ID_SUCCESS) {
             throw new RuntimeException("Cannot add heartrate receiver on " + this.session.first);
@@ -573,12 +586,4 @@ class HitoeWrapper {
 
     }
 
-    interface HeartrateReceiver {
-        /**
-         * 心拍数を受け取る
-         *
-         * @param heartrate 心拍数
-         */
-        void receive(int heartrate);
-    }
 }

@@ -68,7 +68,7 @@ public class MainActivity extends AppCompatActivity {
     private static final String KEY_MODULE = "module";
     private static final String KEY_EVENT = "event";
     private static final String KEY_DATA = "data";
-    private static final String KEY_HEART_RATE = "heartrate";
+    private static final String KEY_HEART_RATE = "heartRate";
     private static final String KEY_LOCATION = "location";
     private static final String KEY_DATE = "date";
 

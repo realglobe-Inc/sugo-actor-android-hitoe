@@ -21,6 +21,7 @@ import android.support.annotation.Nullable;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
+import android.util.Pair;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -36,7 +37,10 @@ import com.google.android.gms.location.LocationServices;
 import org.json.JSONObject;
 
 import java.net.URI;
+import java.text.SimpleDateFormat;
 import java.util.Arrays;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Locale;
@@ -64,8 +68,9 @@ public class MainActivity extends AppCompatActivity {
     private static final String KEY_MODULE = "module";
     private static final String KEY_EVENT = "event";
     private static final String KEY_DATA = "data";
-    private static final String KEY_HEART_RATE = "heartrate";
+    private static final String KEY_HEART_RATE = "heartRate";
     private static final String KEY_LOCATION = "location";
+    private static final String KEY_DATE = "date";
 
     // 状態
     private enum State {
@@ -92,7 +97,7 @@ public class MainActivity extends AppCompatActivity {
     // hitoe の準備が終わっているか
     private boolean hitoeReady;
     // 計測した心拍数
-    private volatile int heartrate;
+    private volatile Pair<Long, Integer> heartrate;
     // 心拍数を表示する部品
     private volatile TextView heartrateView;
 
@@ -123,8 +128,8 @@ public class MainActivity extends AppCompatActivity {
                     });
                 }
             }
-        }, heartrate -> {
-            this.heartrate = heartrate;
+        }, (date, heartrate) -> {
+            this.heartrate = new Pair<>(date, heartrate);
             this.heartrateView.post(() -> this.heartrateView.setText(String.format(Locale.US, "%d", heartrate)));
         });
         hitoe.setDisconnectCallback(() -> {
@@ -142,6 +147,7 @@ public class MainActivity extends AppCompatActivity {
         });
         this.handler = new Handler();
         this.timerHandler = new Handler();
+        this.heartrate = new Pair<>(0L, 0);
 
         // 画面を初期化
         reset();
@@ -331,7 +337,7 @@ public class MainActivity extends AppCompatActivity {
             enableHitoeSetting();
         }
         this.heartrateView = (TextView) findViewById(R.id.text_heartrate_value);
-        this.heartrateView.setText(String.format(Locale.US, "%d", heartrate));
+        this.heartrateView.setText(String.format(Locale.US, "%d", heartrate.second));
 
         Log.d(LOG_TAG, "Mode was reset");
     }
@@ -381,7 +387,7 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.button_stop).setOnClickListener(view -> (new CancelDialog()).show(getFragmentManager(), "dialog"));
 
         this.heartrateView = (TextView) findViewById(R.id.text_heartrate_value);
-        this.heartrateView.setText(String.format(Locale.US, "%d", heartrate));
+        this.heartrateView.setText(String.format(Locale.US, "%d", heartrate.second));
 
         startReport();
 
@@ -428,7 +434,7 @@ public class MainActivity extends AppCompatActivity {
             this.googleApiClient.connect();
         }
         this.heartrateView = (TextView) findViewById(R.id.text_heartrate_value);
-        this.heartrateView.setText(String.format(Locale.US, "%d", heartrate));
+        this.heartrateView.setText(String.format(Locale.US, "%d", heartrate.second));
 
         startReport();
 
@@ -485,9 +491,7 @@ public class MainActivity extends AppCompatActivity {
             Log.d(LOG_TAG, "Connected to " + server);
             processAfterConnection(socket, actorKey, interval);
         });
-        socket.on(Socket.EVENT_DISCONNECT, args -> {
-            Log.d(LOG_TAG, "Disconnected from " + server);
-        });
+        socket.on(Socket.EVENT_DISCONNECT, args -> Log.d(LOG_TAG, "Disconnected from " + server));
         socket.connect();
     }
 
@@ -542,7 +546,10 @@ public class MainActivity extends AppCompatActivity {
         }
 
         final Map<String, Object> data = new HashMap<>();
-        data.put(KEY_HEART_RATE, this.heartrate);
+        final Pair<Long, Integer> heartrate = this.heartrate;
+        Calendar.getInstance().setTimeInMillis(heartrate.first);
+        data.put(KEY_DATE, (new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZZZZZ", Locale.US)).format(new Date(heartrate.first)));
+        data.put(KEY_HEART_RATE, heartrate.second);
         final Location curLocation = this.location;
         if (curLocation != null) {
             data.put(KEY_LOCATION, Arrays.asList(curLocation.getLatitude(), curLocation.getLongitude(), curLocation.getAltitude()));

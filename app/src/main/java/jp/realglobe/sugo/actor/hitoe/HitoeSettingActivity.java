@@ -150,8 +150,11 @@ public class HitoeSettingActivity extends AppCompatActivity {
         public Dialog onCreateDialog(Bundle savedInstanceState) {
             final HitoeWrapper.SensorInfo sensor = HitoeWrapper.SensorInfo.parse(getArguments().getString(KEY_SENSOR));
             final HitoeSettingActivity activity = (HitoeSettingActivity) getActivity();
+            final View view = activity.getLayoutInflater().inflate(R.layout.dialog_connect, null);
+            ((TextView) view.findViewById(R.id.text_sensor)).setText(sensor.toString());
             return (new AlertDialog.Builder(activity))
-                    .setTitle(sensor + " と接続します")
+                    .setTitle("心拍センサーと接続します")
+                    .setView(view)
                     .setPositiveButton("OK", (dialog, which) -> activity.connect(sensor))
                     .setNegativeButton("心拍センサーを探し直す", (dialog, which) -> activity.searchAfterDisconnect())
                     .create();
@@ -162,9 +165,7 @@ public class HitoeSettingActivity extends AppCompatActivity {
      * 最初からやり直す
      */
     private void searchAfterDisconnect() {
-        this.hitoe.disconnect(() -> {
-            search();
-        });
+        this.hitoe.disconnect(this::search);
     }
 
     /**

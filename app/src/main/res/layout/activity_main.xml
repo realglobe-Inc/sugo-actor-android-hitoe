@@ -10,8 +10,28 @@
     android:paddingTop="@dimen/activity_vertical_margin"
     tools:context="jp.realglobe.sugo.actor.hitoe.MainActivity">
 
-    <include
-        android:id="@+id/main_parameters"
-        layout="@layout/parameters" />
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+
+        <include
+            android:id="@+id/parameters_main"
+            layout="@layout/parameters" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center">
+
+            <Button
+                android:id="@+id/button_hitoe_setting"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_margin="10dp"
+                android:text="@string/button_hitoe_setting" />
+        </LinearLayout>
+    </LinearLayout>
 
 </RelativeLayout>

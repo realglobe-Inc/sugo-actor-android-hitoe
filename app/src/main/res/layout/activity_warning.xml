@@ -17,16 +17,16 @@
         android:orientation="vertical">
 
         <include
-            android:id="@+id/warning_parameters"
+            android:id="@+id/parameters_warning"
             layout="@layout/parameters" />
 
         <TextView
-            android:id="@+id/message"
+            android:id="@+id/text_message"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_margin="20dp"
             android:gravity="center"
-            android:text="@string/message_warning"
+            android:text="@string/text_message_warning"
             android:textSize="30sp" />
 
         <LinearLayout
@@ -37,20 +37,20 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/counter_prefix"
+                android:text="@string/text_counter_prefix"
                 android:textSize="20sp" />
 
             <TextView
-                android:id="@+id/counter_count"
+                android:id="@+id/text_counter_count"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/counter_dummy"
+                android:text="@string/text_counter_count"
                 android:textSize="20sp" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/counter_suffix"
+                android:text="@string/text_counter_suffix"
                 android:textSize="20sp" />
         </LinearLayout>
 

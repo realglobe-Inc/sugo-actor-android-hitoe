@@ -2,7 +2,7 @@
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
     <EditTextPreference
         android:defaultValue="@string/default_delay"
-        android:dialogMessage="異常検知してから実際に通報するまでの猶予期間を秒単位で入力してください"
+        android:dialogMessage="異常を検知してから救助を要請するまでの時間を秒単位で入力してください"
         android:dialogTitle="通報までの時間（秒）"
         android:key="@string/key_delay"
         android:numeric="integer"
@@ -11,11 +11,20 @@
 
     <EditTextPreference
         android:defaultValue="@string/default_server"
-        android:dialogMessage="sugo-hub の URL を入力してください"
-        android:dialogTitle="サーバーアドレス"
+        android:dialogMessage="通報先 sugo-hub の URL を入力してください"
+        android:dialogTitle="通報先アドレス"
         android:key="@string/key_server"
         android:summary="..."
-        android:title="サーバーアドレス" />
+        android:title="通報先アドレス" />
+
+    <EditTextPreference
+        android:defaultValue="@string/default_report_interval"
+        android:dialogMessage="通報先に状態を報告する間隔を秒単位で入力してください"
+        android:dialogTitle="報告間隔（秒）"
+        android:key="@string/key_report_interval"
+        android:numeric="integer"
+        android:summary="..."
+        android:title="報告間隔（秒）" />
 
     <EditTextPreference
         android:defaultValue="@string/default_actor_suffix"

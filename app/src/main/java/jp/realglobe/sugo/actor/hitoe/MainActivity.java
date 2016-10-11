@@ -485,9 +485,7 @@ public class MainActivity extends AppCompatActivity {
             Log.d(LOG_TAG, "Connected to " + server);
             processAfterConnection(socket, actorKey, interval);
         });
-        socket.on(Socket.EVENT_DISCONNECT, args -> {
-            Log.d(LOG_TAG, "Disconnected from " + server);
-        });
+        socket.on(Socket.EVENT_DISCONNECT, args -> Log.d(LOG_TAG, "Disconnected from " + server));
         socket.connect();
     }
 

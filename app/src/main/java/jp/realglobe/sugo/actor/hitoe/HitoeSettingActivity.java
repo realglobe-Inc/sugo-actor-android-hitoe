@@ -165,9 +165,7 @@ public class HitoeSettingActivity extends AppCompatActivity {
      * 最初からやり直す
      */
     private void searchAfterDisconnect() {
-        this.hitoe.disconnect(() -> {
-            search();
-        });
+        this.hitoe.disconnect(this::search);
     }
 
     /**

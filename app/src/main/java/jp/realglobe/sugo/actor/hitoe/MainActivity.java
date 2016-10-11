@@ -100,7 +100,8 @@ public class MainActivity extends AppCompatActivity {
     private volatile Pair<Long, Integer> heartrate;
     // 心拍数を表示する部品
     private volatile TextView heartrateView;
-
+    // hub につないでいるかどうか
+    private boolean hubConnecting;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -480,7 +481,12 @@ public class MainActivity extends AppCompatActivity {
     /**
      * サーバーへの報告を始める
      */
-    private void startReport() {
+    private synchronized void startReport() {
+        if (this.hubConnecting) {
+            Log.d(LOG_TAG, "Already connecting");
+            return;
+        }
+        this.hubConnecting = true;
         final SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
         final String server = sharedPreferences.getString(getString(R.string.key_server), getString(R.string.default_server));
         final String actorKey = getString(R.string.actor_prefix) + sharedPreferences.getString(getString(R.string.key_actor_suffix), getString(R.string.default_actor_suffix));
@@ -499,6 +505,7 @@ public class MainActivity extends AppCompatActivity {
         if (this.state == State.MAIN) {
             // 終了
             socket.disconnect();
+            this.hubConnecting = false;
             return;
         }
 
@@ -510,10 +517,11 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    private void processAfterGreeting(Socket socket, String actorKey, long interval) {
+    private synchronized void processAfterGreeting(Socket socket, String actorKey, long interval) {
         if (this.state == State.MAIN) {
             // 終了
             socket.disconnect();
+            this.hubConnecting = false;
             return;
         }
 
@@ -537,11 +545,12 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    private void report(Socket socket, String actorKey, long interval) {
+    private synchronized void report(Socket socket, String actorKey, long interval) {
         final State state1 = this.state;
         if (state1 == State.MAIN) {
             // 終了
             socket.disconnect();
+            this.hubConnecting = false;
             return;
         }
 

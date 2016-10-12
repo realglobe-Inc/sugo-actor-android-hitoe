@@ -5,6 +5,7 @@ import android.app.Dialog;
 import android.app.DialogFragment;
 import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.os.CountDownTimer;
 import android.os.Handler;
 import android.preference.PreferenceManager;
 import android.support.annotation.NonNull;
@@ -18,6 +19,7 @@ import android.widget.TextView;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * 心拍センサーを準備する
@@ -27,6 +29,7 @@ public class HitoeSettingActivity extends AppCompatActivity {
     private static final String LOG_TAG = HitoeSettingActivity.class.getName();
 
     private static final long SEARCH_TIME = 5_000;
+    private static final long BACK_DELAY = 3_000;
 
     private HitoeWrapper hitoe;
 
@@ -36,6 +39,11 @@ public class HitoeSettingActivity extends AppCompatActivity {
     private TextView messageView;
     private Button searchButton;
     private Button backButton;
+    private TextView backPrefixView;
+    private TextView backCountView;
+    private TextView backSuffixView;
+    private CountDownTimer backTimer;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -48,16 +56,65 @@ public class HitoeSettingActivity extends AppCompatActivity {
 
         this.handler = new Handler();
         this.messageView = (TextView) findViewById(R.id.text_hitoe_message);
+
         this.searchButton = (Button) findViewById(R.id.button_search);
         this.searchButton.setEnabled(false);
         this.searchButton.setVisibility(View.INVISIBLE);
-        this.searchButton.setOnClickListener(v -> searchAfterDisconnect());
+        this.searchButton.setOnClickListener(v -> {
+            stopBackTimer();
+            searchAfterDisconnect();
+        });
+
         this.backButton = (Button) findViewById(R.id.button_back);
         this.backButton.setEnabled(false);
         this.backButton.setVisibility(View.INVISIBLE);
         this.backButton.setOnClickListener(v -> onBackPressed());
 
-        this.handler.post(this::check);
+        this.backPrefixView = (TextView) findViewById(R.id.text_back_prefix);
+        this.backCountView = (TextView) findViewById(R.id.text_back_count);
+        this.backSuffixView = (TextView) findViewById(R.id.text_back_suffix);
+
+        this.handler.post(() -> {
+            stopBackTimer();
+            check();
+        });
+    }
+
+    /**
+     * 自動的に戻るタイマーを開始する
+     */
+    private synchronized void startBackTimer() {
+        if (this.backTimer != null) {
+            this.backTimer.cancel();
+        }
+        this.backPrefixView.setVisibility(View.VISIBLE);
+        this.backCountView.setVisibility(View.VISIBLE);
+        this.backSuffixView.setVisibility(View.VISIBLE);
+        this.backTimer = new CountDownTimer(BACK_DELAY, 100) {
+            @Override
+            public void onTick(long millisUntilFinished) {
+                HitoeSettingActivity.this.backCountView.setText(String.format(Locale.US, "%d", (int) Math.ceil(millisUntilFinished / 1_000.0)));
+            }
+
+            @Override
+            public void onFinish() {
+                onBackPressed();
+            }
+        };
+        this.backTimer.start();
+    }
+
+    /**
+     * 自動的に戻るタイマーを止める
+     */
+    private synchronized void stopBackTimer() {
+        if (this.backTimer != null) {
+            this.backTimer.cancel();
+            this.backTimer = null;
+        }
+        this.backPrefixView.setVisibility(View.INVISIBLE);
+        this.backCountView.setVisibility(View.INVISIBLE);
+        this.backSuffixView.setVisibility(View.INVISIBLE);
     }
 
     /**
@@ -231,6 +288,7 @@ public class HitoeSettingActivity extends AppCompatActivity {
                 this.backButton.setEnabled(true);
                 this.backButton.setVisibility(View.VISIBLE);
             });
+            this.handler.post(this::startBackTimer);
         });
     }
 

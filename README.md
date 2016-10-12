@@ -19,7 +19,7 @@ Android で動く、hitoe を使った心拍異常検知 module を内蔵した 
 |id|数値|通報の識別番号|
 |heartRate|数値|心拍数|
 |location|数値の配列|緯度、経度、高度|
-|date|RFC3339 形式の日時|
+|date|文字列|RFC3339 形式の日時|
 
 例えば、
 

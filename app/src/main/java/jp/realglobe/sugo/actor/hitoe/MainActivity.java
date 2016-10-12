@@ -39,7 +39,6 @@ import org.json.JSONObject;
 import java.net.URI;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
-import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -556,7 +555,6 @@ public class MainActivity extends AppCompatActivity {
 
         final Map<String, Object> data = new HashMap<>();
         final Pair<Long, Integer> heartrate = this.heartrate;
-        Calendar.getInstance().setTimeInMillis(heartrate.first);
         data.put(KEY_DATE, (new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZZZZZ", Locale.US)).format(new Date(heartrate.first)));
         data.put(KEY_HEART_RATE, heartrate.second);
         final Location curLocation = this.location;

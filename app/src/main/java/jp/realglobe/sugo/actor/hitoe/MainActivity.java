@@ -70,6 +70,7 @@ public class MainActivity extends AppCompatActivity {
     private static final String KEY_HEART_RATE = "heartRate";
     private static final String KEY_LOCATION = "location";
     private static final String KEY_DATE = "date";
+    private static final String KEY_ID = "id";
 
     // 状態
     private enum State {
@@ -101,6 +102,8 @@ public class MainActivity extends AppCompatActivity {
     private volatile TextView heartrateView;
     // hub につないでいるかどうか
     private boolean hubConnecting;
+    // 通報の識別番号
+    private int reportId;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -486,6 +489,7 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
         this.hubConnecting = true;
+        this.reportId++;
         final SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
         final String server = sharedPreferences.getString(getString(R.string.key_server), getString(R.string.default_server));
         final String actorKey = getString(R.string.actor_prefix) + sharedPreferences.getString(getString(R.string.key_actor_suffix), getString(R.string.default_actor_suffix));
@@ -555,6 +559,7 @@ public class MainActivity extends AppCompatActivity {
 
         final Map<String, Object> data = new HashMap<>();
         final Pair<Long, Integer> heartrate = this.heartrate;
+        data.put(KEY_ID, this.reportId);
         data.put(KEY_DATE, (new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZZZZZ", Locale.US)).format(new Date(heartrate.first)));
         data.put(KEY_HEART_RATE, heartrate.second);
         final Location curLocation = this.location;

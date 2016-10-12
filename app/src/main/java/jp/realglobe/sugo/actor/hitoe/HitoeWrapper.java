@@ -79,7 +79,6 @@ class HitoeWrapper {
 
     private static final String DATA_KEY_HR = "raw.hr";
 
-    private static final String DATA_HR_COLUMN_SEPARATOR = ",";
     private static final int DATA_HR_COLUMN_NUMBER = 2;
     private static final int DATE_HR_TIMESTAMP_COLUMN = 0;
     private static final int DATA_HR_BPM_COLUMN = 1;
@@ -460,7 +459,7 @@ class HitoeWrapper {
         };
         final int responseId = this.core.addReceiver(this.session.first, new String[]{DATA_KEY_HR}, (connection, responseId1, dataKey, data) -> {
             final String[] rows = data.split(ROW_SEPARATOR);
-            final String[] columns = rows[rows.length - 1].split(DATA_HR_COLUMN_SEPARATOR); // 最新の値だけ使う
+            final String[] columns = rows[rows.length - 1].split(COLUMN_SEPARATOR); // 最新の値だけ使う
             if (columns.length < DATA_HR_COLUMN_NUMBER) {
                 return;
             }

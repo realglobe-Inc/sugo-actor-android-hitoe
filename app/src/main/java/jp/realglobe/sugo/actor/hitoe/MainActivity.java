@@ -87,7 +87,7 @@ public class MainActivity extends AppCompatActivity {
     private static HitoeWrapper hitoe;
 
     private Handler handler;
-    private Handler timerHandler;
+    private Handler timer;
     private CountDownTimer callTimer;
 
     private volatile State state = State.MAIN;
@@ -147,7 +147,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
         this.handler = new Handler();
-        this.timerHandler = new Handler();
+        this.timer = new Handler();
         this.heartrate = new Pair<>(0L, 0);
 
         // 画面を初期化
@@ -322,7 +322,7 @@ public class MainActivity extends AppCompatActivity {
     private synchronized void reset() {
         setContentView(R.layout.activity_main);
         this.state = State.MAIN;
-        this.timerHandler.removeCallbacksAndMessages(null);
+        this.timer.removeCallbacksAndMessages(null);
         if (this.callTimer != null) {
             this.callTimer.cancel();
             this.callTimer = null;
@@ -357,7 +357,7 @@ public class MainActivity extends AppCompatActivity {
 
         setContentView(R.layout.activity_warning);
         this.state = State.WARNING;
-        this.timerHandler.removeCallbacksAndMessages(null);
+        this.timer.removeCallbacksAndMessages(null);
         if (this.callTimer != null) {
             this.callTimer.cancel();
         }
@@ -424,7 +424,7 @@ public class MainActivity extends AppCompatActivity {
         }
         setContentView(R.layout.activity_emergency);
         this.state = State.EMERGENCY;
-        this.timerHandler.removeCallbacksAndMessages(null);
+        this.timer.removeCallbacksAndMessages(null);
         if (this.callTimer != null) {
             this.callTimer.cancel();
             this.callTimer = null;
@@ -470,8 +470,8 @@ public class MainActivity extends AppCompatActivity {
         final SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
         final long delay = 1_000 * Long.parseLong(sharedPreferences.getString(getString(R.string.key_timer), getString(R.string.default_timer)));
 
-        this.timerHandler.removeCallbacksAndMessages(null);
-        this.timerHandler.postDelayed(() -> {
+        this.timer.removeCallbacksAndMessages(null);
+        this.timer.postDelayed(() -> {
             warn();
             Log.d(LOG_TAG, "Dummy emergency was triggered");
         }, delay);

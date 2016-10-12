@@ -59,6 +59,32 @@
                 android:text="@string/button_back" />
 
         </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center">
+
+
+            <TextView
+                android:id="@+id/text_back_prefix"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/text_back_prefix" />
+
+            <TextView
+                android:id="@+id/text_back_count"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/text_back_count_default" />
+
+            <TextView
+                android:id="@+id/text_back_suffix"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/text_back_suffix" />
+        </LinearLayout>
     </LinearLayout>
+
 
 </RelativeLayout>

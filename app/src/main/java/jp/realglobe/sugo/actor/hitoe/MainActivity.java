@@ -87,7 +87,7 @@ public class MainActivity extends AppCompatActivity {
     private static HitoeWrapper hitoe;
 
     private Handler handler;
-    private Handler timerHandler;
+    private Handler timer;
     private CountDownTimer callTimer;
 
     private volatile State state = State.MAIN;
@@ -100,7 +100,8 @@ public class MainActivity extends AppCompatActivity {
     private volatile Pair<Long, Integer> heartrate;
     // 心拍数を表示する部品
     private volatile TextView heartrateView;
-
+    // hub につないでいるかどうか
+    private boolean hubConnecting;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -146,7 +147,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
         this.handler = new Handler();
-        this.timerHandler = new Handler();
+        this.timer = new Handler();
         this.heartrate = new Pair<>(0L, 0);
 
         // 画面を初期化
@@ -321,7 +322,7 @@ public class MainActivity extends AppCompatActivity {
     private synchronized void reset() {
         setContentView(R.layout.activity_main);
         this.state = State.MAIN;
-        this.timerHandler.removeCallbacksAndMessages(null);
+        this.timer.removeCallbacksAndMessages(null);
         if (this.callTimer != null) {
             this.callTimer.cancel();
             this.callTimer = null;
@@ -356,7 +357,7 @@ public class MainActivity extends AppCompatActivity {
 
         setContentView(R.layout.activity_warning);
         this.state = State.WARNING;
-        this.timerHandler.removeCallbacksAndMessages(null);
+        this.timer.removeCallbacksAndMessages(null);
         if (this.callTimer != null) {
             this.callTimer.cancel();
         }
@@ -423,7 +424,7 @@ public class MainActivity extends AppCompatActivity {
         }
         setContentView(R.layout.activity_emergency);
         this.state = State.EMERGENCY;
-        this.timerHandler.removeCallbacksAndMessages(null);
+        this.timer.removeCallbacksAndMessages(null);
         if (this.callTimer != null) {
             this.callTimer.cancel();
             this.callTimer = null;
@@ -469,8 +470,8 @@ public class MainActivity extends AppCompatActivity {
         final SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
         final long delay = 1_000 * Long.parseLong(sharedPreferences.getString(getString(R.string.key_timer), getString(R.string.default_timer)));
 
-        this.timerHandler.removeCallbacksAndMessages(null);
-        this.timerHandler.postDelayed(() -> {
+        this.timer.removeCallbacksAndMessages(null);
+        this.timer.postDelayed(() -> {
             warn();
             Log.d(LOG_TAG, "Dummy emergency was triggered");
         }, delay);
@@ -480,7 +481,12 @@ public class MainActivity extends AppCompatActivity {
     /**
      * サーバーへの報告を始める
      */
-    private void startReport() {
+    private synchronized void startReport() {
+        if (this.hubConnecting) {
+            Log.d(LOG_TAG, "Already connecting");
+            return;
+        }
+        this.hubConnecting = true;
         final SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
         final String server = sharedPreferences.getString(getString(R.string.key_server), getString(R.string.default_server));
         final String actorKey = getString(R.string.actor_prefix) + sharedPreferences.getString(getString(R.string.key_actor_suffix), getString(R.string.default_actor_suffix));
@@ -499,6 +505,7 @@ public class MainActivity extends AppCompatActivity {
         if (this.state == State.MAIN) {
             // 終了
             socket.disconnect();
+            this.hubConnecting = false;
             return;
         }
 
@@ -510,10 +517,11 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    private void processAfterGreeting(Socket socket, String actorKey, long interval) {
+    private synchronized void processAfterGreeting(Socket socket, String actorKey, long interval) {
         if (this.state == State.MAIN) {
             // 終了
             socket.disconnect();
+            this.hubConnecting = false;
             return;
         }
 
@@ -537,11 +545,12 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    private void report(Socket socket, String actorKey, long interval) {
+    private synchronized void report(Socket socket, String actorKey, long interval) {
         final State state1 = this.state;
         if (state1 == State.MAIN) {
             // 終了
             socket.disconnect();
+            this.hubConnecting = false;
             return;
         }
 

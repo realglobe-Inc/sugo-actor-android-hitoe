@@ -37,4 +37,7 @@
     <string name="default_report_interval">1</string>
     <string name="item_hitoe_settings" type="id">心拍センサー設定</string>
     <string name="button_search">心拍センサーを探し直す</string>
+    <string name="text_back_prefix">あと</string>
+    <string name="text_back_count_default">0</string>
+    <string name="text_back_suffix">秒で自動的に戻ります</string>
 </resources>

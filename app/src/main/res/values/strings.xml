@@ -10,7 +10,7 @@
     <string name="text_counter_suffix">秒で救助を要請します</string>
     <string name="button_stop">止める</string>
     <string name="button_call">今すぐ要請する</string>
-    <string name="text_message_emergency">異常事態です</string>
+    <string name="text_message_emergency">緊急事態です</string>
     <string name="text_message_called">救助を要請しました</string>
     <string name="text_heartrate">心拍数:</string>
     <string name="text_heartrate_default">0</string>
@@ -21,7 +21,7 @@
     <string name="key_timer">timer</string>
     <string name="default_delay">30</string>
     <string name="default_server">http://localhost/</string>
-    <string name="default_timer">300</string>
+    <string name="default_timer">180</string>
     <string name="key_actor_suffix">actor_suffix</string>
     <string name="default_actor_suffix">1</string>
     <string name="actor_prefix">qq:hitoe:</string>

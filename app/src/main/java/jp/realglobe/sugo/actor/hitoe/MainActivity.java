@@ -31,7 +31,7 @@ import android.widget.Toast;
 
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.common.api.GoogleApiClient.ConnectionCallbacks;
-import com.google.android.gms.location.LocationListener;
+import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
 
 import org.json.JSONObject;
@@ -54,6 +54,8 @@ import jp.ne.docomo.smt.dev.hitoetransmitter.sdk.HitoeSdkAPIImpl;
 public class MainActivity extends AppCompatActivity {
 
     private static final String LOG_TAG = MainActivity.class.getName();
+
+    private static final long LOCATION_INTERVAL = 10_000;
 
     private static final String NAMESPACE = "/actors";
 
@@ -113,7 +115,30 @@ public class MainActivity extends AppCompatActivity {
         this.ringtone = RingtoneManager.getRingtone(this, RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM));
         this.googleApiClient = new GoogleApiClient.Builder(this)
                 .addApi(LocationServices.API)
-                .addConnectionCallbacks(new MyLocationListener())
+                .addConnectionCallbacks(new ConnectionCallbacks() {
+                    @Override
+                    public void onConnected(@Nullable Bundle bundle) {
+                        if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
+                                ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                            return;
+                        }
+                        LocationServices.FusedLocationApi.requestLocationUpdates(
+                                MainActivity.this.googleApiClient,
+                                LocationRequest.create()
+                                        .setInterval(LOCATION_INTERVAL)
+                                        .setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY),
+                                location -> {
+                                    MainActivity.this.location = location;
+                                    Log.d(LOG_TAG, "Location changed to " + location);
+                                });
+                        Log.d(LOG_TAG, "Location monitor started");
+                    }
+
+                    @Override
+                    public void onConnectionSuspended(int i) {
+                        Log.d(LOG_TAG, "Location monitor suspended");
+                    }
+                })
                 .addOnConnectionFailedListener(connectionResult -> Log.w(LOG_TAG, "Location detection error: " + connectionResult))
                 .build();
         hitoe = new HitoeWrapper(HitoeSdkAPIImpl.getInstance(this.getApplicationContext()));
@@ -237,36 +262,6 @@ public class MainActivity extends AppCompatActivity {
             message = "心拍数の測定と救助要請への位置情報の付加ができません\nメニューから許可設定を行ってください";
         }
         Toast.makeText(this, message, Toast.LENGTH_LONG).show();
-    }
-
-    /**
-     * 位置情報のリスナー
-     */
-    private class MyLocationListener implements ConnectionCallbacks, LocationListener {
-
-        @Override
-        public void onConnected(@Nullable Bundle bundle) {
-            if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
-                    ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                return;
-            }
-            final Location location = LocationServices.FusedLocationApi.getLastLocation(MainActivity.this.googleApiClient);
-            MainActivity.this.location = location;
-
-            Log.d(LOG_TAG, "Location is " + location);
-        }
-
-        @Override
-        public void onConnectionSuspended(int i) {
-            Log.d(LOG_TAG, "Location monitor suspended");
-        }
-
-        @Override
-        public void onLocationChanged(Location location) {
-            MainActivity.this.location = location;
-
-            Log.d(LOG_TAG, "Location changed to " + location);
-        }
     }
 
     @Override

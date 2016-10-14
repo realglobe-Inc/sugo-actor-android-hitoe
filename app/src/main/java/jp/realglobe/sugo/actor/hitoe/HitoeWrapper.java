@@ -17,7 +17,7 @@ import java.util.Set;
 import jp.ne.docomo.smt.dev.hitoetransmitter.HitoeSdkAPI;
 
 /**
- * HitoeSdkAPI の一部を同期的に扱えるようにするラッパー
+ * HitoeSdkAPI のラッパー
  * Created by fukuchidaisuke on 16/10/04.
  */
 class HitoeWrapper {

@@ -92,7 +92,7 @@ public class MainActivity extends AppCompatActivity {
     private Handler timer;
     private CountDownTimer callTimer;
 
-    private volatile State state = State.MAIN;
+    private State state = State.MAIN;
 
     // 現在位置
     private volatile Location location;
@@ -499,7 +499,7 @@ public class MainActivity extends AppCompatActivity {
         socket.connect();
     }
 
-    private void processAfterConnection(Socket socket, String actorKey, long interval) {
+    private synchronized void processAfterConnection(Socket socket, String actorKey, long interval) {
         if (this.state == State.MAIN) {
             // 終了
             socket.disconnect();
@@ -544,8 +544,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private synchronized void report(Socket socket, String actorKey, long interval) {
-        final State state1 = this.state;
-        if (state1 == State.MAIN) {
+        if (this.state == State.MAIN) {
             // 終了
             socket.disconnect();
             this.hubConnecting = false;
@@ -561,7 +560,7 @@ public class MainActivity extends AppCompatActivity {
         if (curLocation != null) {
             data.put(KEY_LOCATION, Arrays.asList(curLocation.getLatitude(), curLocation.getLongitude(), curLocation.getAltitude()));
         }
-        emit(socket, actorKey, state1.name().toLowerCase(), data);
+        emit(socket, actorKey, this.state.name().toLowerCase(), data);
         Log.d(LOG_TAG, socket.id() + " sent report");
 
         this.handler.postDelayed(() -> report(socket, actorKey, interval), interval);

@@ -105,7 +105,7 @@ public class MainActivity extends AppCompatActivity {
     // hub につないでいるかどうか
     private boolean hubConnecting;
     // 通報の識別番号
-    private int reportId;
+    private int reportId = Math.abs((int) System.nanoTime());
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {

@@ -273,6 +273,14 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        reset();
+        hitoe.disconnect(() -> {
+        });
+    }
+
+    @Override
     public void onBackPressed() {
         (new FinishDialog()).show(getFragmentManager(), "dialog");
     }

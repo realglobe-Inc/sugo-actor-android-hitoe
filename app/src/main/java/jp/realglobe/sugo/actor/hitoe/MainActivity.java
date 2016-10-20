@@ -44,6 +44,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 
 import io.socket.client.Ack;
@@ -110,6 +111,13 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        // 初回に actor ID を生成する
+        final SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
+        final String actorSuffix = preferences.getString(getString(R.string.key_actor_suffix), null);
+        if (actorSuffix == null) {
+            preferences.edit().putString(getString(R.string.key_actor_suffix), String.valueOf(Math.abs((new Random(System.nanoTime())).nextInt()))).apply();
+        }
 
         this.vibrator = (Vibrator) getSystemService(VIBRATOR_SERVICE);
         this.ringtone = RingtoneManager.getRingtone(this, RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM));

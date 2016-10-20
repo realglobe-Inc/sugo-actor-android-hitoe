@@ -44,6 +44,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 
 import io.socket.client.Ack;
@@ -92,7 +93,7 @@ public class MainActivity extends AppCompatActivity {
     private Handler timer;
     private CountDownTimer callTimer;
 
-    private volatile State state = State.MAIN;
+    private State state = State.MAIN;
 
     // 現在位置
     private volatile Location location;
@@ -105,11 +106,18 @@ public class MainActivity extends AppCompatActivity {
     // hub につないでいるかどうか
     private boolean hubConnecting;
     // 通報の識別番号
-    private int reportId;
+    private int reportId = Math.abs((int) System.nanoTime());
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        // 初回に actor ID を生成する
+        final SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
+        final String actorSuffix = preferences.getString(getString(R.string.key_actor_suffix), null);
+        if (actorSuffix == null) {
+            preferences.edit().putString(getString(R.string.key_actor_suffix), String.valueOf(Math.abs((new Random(System.nanoTime())).nextInt()))).apply();
+        }
 
         this.vibrator = (Vibrator) getSystemService(VIBRATOR_SERVICE);
         this.ringtone = RingtoneManager.getRingtone(this, RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM));
@@ -262,6 +270,14 @@ public class MainActivity extends AppCompatActivity {
             message = "心拍数の測定と救助要請への位置情報の付加ができません\nメニューから許可設定を行ってください";
         }
         Toast.makeText(this, message, Toast.LENGTH_LONG).show();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        reset();
+        hitoe.disconnect(() -> {
+        });
     }
 
     @Override
@@ -499,7 +515,7 @@ public class MainActivity extends AppCompatActivity {
         socket.connect();
     }
 
-    private void processAfterConnection(Socket socket, String actorKey, long interval) {
+    private synchronized void processAfterConnection(Socket socket, String actorKey, long interval) {
         if (this.state == State.MAIN) {
             // 終了
             socket.disconnect();
@@ -544,8 +560,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private synchronized void report(Socket socket, String actorKey, long interval) {
-        final State state1 = this.state;
-        if (state1 == State.MAIN) {
+        if (this.state == State.MAIN) {
             // 終了
             socket.disconnect();
             this.hubConnecting = false;
@@ -561,7 +576,7 @@ public class MainActivity extends AppCompatActivity {
         if (curLocation != null) {
             data.put(KEY_LOCATION, Arrays.asList(curLocation.getLatitude(), curLocation.getLongitude(), curLocation.getAltitude()));
         }
-        emit(socket, actorKey, state1.name().toLowerCase(), data);
+        emit(socket, actorKey, this.state.name().toLowerCase(), data);
         Log.d(LOG_TAG, socket.id() + " sent report");
 
         this.handler.postDelayed(() -> report(socket, actorKey, interval), interval);

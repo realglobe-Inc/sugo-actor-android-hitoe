@@ -18,8 +18,10 @@ import android.widget.TextView;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 /**
  * 心拍センサーを準備する
@@ -124,7 +126,8 @@ public class HitoeSettingActivity extends AppCompatActivity {
         this.hitoe.getStatus(sensorId -> {
             if (sensorId != null) {
                 // もう接続してる
-                this.messageView.post(() -> this.messageView.setText(sensorId + " と接続しています"));
+                String message = sensorId + " と接続しています";
+                this.messageView.post(() -> this.messageView.setText(message));
                 this.searchButton.post(() -> {
                     this.searchButton.setEnabled(true);
                     this.searchButton.setVisibility(View.VISIBLE);
@@ -208,7 +211,7 @@ public class HitoeSettingActivity extends AppCompatActivity {
             final HitoeWrapper.SensorInfo sensor = HitoeWrapper.SensorInfo.parse(getArguments().getString(KEY_SENSOR));
             final HitoeSettingActivity activity = (HitoeSettingActivity) getActivity();
             final View view = activity.getLayoutInflater().inflate(R.layout.dialog_connect, null);
-            ((TextView) view.findViewById(R.id.text_sensor)).setText(sensor.toString());
+            ((TextView) view.findViewById(R.id.text_sensor)).setText(sensor.getId());
             return (new AlertDialog.Builder(activity))
                     .setTitle("心拍センサーと接続します")
                     .setView(view)
@@ -234,7 +237,7 @@ public class HitoeSettingActivity extends AppCompatActivity {
         preferences.edit().putString(getString(R.string.key_hitoe_sensor), sensor.toString()).apply();
 
         Log.d(LOG_TAG, "Connect to " + sensor);
-        this.messageView.post(() -> this.messageView.setText("心拍センサー " + sensor + " に接続します"));
+        this.messageView.post(() -> this.messageView.setText("心拍センサー " + sensor.getId() + " に接続します"));
 
         final String pincode = preferences.getString(getString(R.string.key_prefix_hitoe_pincode) + sensor.toString(), null);
         if (pincode == null) {
@@ -279,7 +282,7 @@ public class HitoeSettingActivity extends AppCompatActivity {
             }
 
             Log.d(LOG_TAG, "Connected to sensor " + sensor);
-            this.messageView.post(() -> this.messageView.setText("心拍センサー " + sensor + " に接続しました"));
+            this.messageView.post(() -> this.messageView.setText("心拍センサー " + sensor.getId() + " に接続しました"));
             this.searchButton.post(() -> {
                 this.searchButton.setEnabled(true);
                 this.searchButton.setVisibility(View.VISIBLE);
@@ -336,10 +339,17 @@ public class HitoeSettingActivity extends AppCompatActivity {
                         .setPositiveButton("心拍センサーを探し直す", (dialog, which) -> activity.searchAfterDisconnect())
                         .create();
             }
+            final List<String> ids = new ArrayList<>();
+            final Map<String, HitoeWrapper.SensorInfo> sensors = new HashMap<>();
+            for (String item : items) {
+                final HitoeWrapper.SensorInfo sensor = HitoeWrapper.SensorInfo.parse(item);
+                ids.add(sensor.getId());
+                sensors.put(sensor.getId(), sensor);
+            }
             return (new AlertDialog.Builder(activity))
                     .setCancelable(false)
                     .setTitle("どの心拍センサーで測定しますか？")
-                    .setItems(items.toArray(new String[items.size()]), (dialog, which) -> activity.connect(HitoeWrapper.SensorInfo.parse(items.get(which))))
+                    .setItems(ids.toArray(new String[ids.size()]), (dialog, which) -> activity.connect(sensors.get(ids.get(which))))
                     .setNegativeButton("心拍センサーを探し直す", (dialog, which) -> activity.searchAfterDisconnect())
                     .create();
         }
@@ -382,7 +392,7 @@ public class HitoeSettingActivity extends AppCompatActivity {
             final View view = activity.getLayoutInflater().inflate(R.layout.dialog_pincode, null);
             return (new AlertDialog.Builder(activity))
                     .setView(view)
-                    .setTitle(sensor + "のピンコードを入力してください")
+                    .setTitle(sensor.getId() + "のピンコードを入力してください")
                     .setPositiveButton("OK", (dialog, whichButton) -> activity.connect(sensor, ((EditText) view.findViewById(R.id.edit_pincode)).getText().toString()))
                     .setNegativeButton("心拍センサーを探し直す", (dialog, whichButton) -> activity.searchAfterDisconnect())
                     .create();

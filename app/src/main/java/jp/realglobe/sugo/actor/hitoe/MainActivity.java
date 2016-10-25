@@ -534,7 +534,7 @@ public class MainActivity extends AppCompatActivity {
     private synchronized void processAfterGreeting(Socket socket, String actorKey, long interval) {
         if (this.state == State.MAIN) {
             // 終了
-            socket.disconnect();
+            disconnect(socket, actorKey);
             this.hubConnecting = false;
             return;
         }
@@ -562,7 +562,7 @@ public class MainActivity extends AppCompatActivity {
     private synchronized void report(Socket socket, String actorKey, long interval) {
         if (this.state == State.MAIN) {
             // 終了
-            socket.disconnect();
+            disconnect(socket, actorKey);
             this.hubConnecting = false;
             return;
         }
@@ -593,6 +593,12 @@ public class MainActivity extends AppCompatActivity {
             wrapData.put(KEY_DATA, data);
         }
         socket.emit(SocketConstants.RemoteEvents.PIPE, new JSONObject(wrapData));
+    }
+
+    private void disconnect(Socket socket, String actorKey) {
+        final Map<String, Object> data = new HashMap<>();
+        data.put(KEY_KEY, actorKey);
+        socket.emit(SocketConstants.GreetingEvents.BYE, new JSONObject(data), (Ack) args -> socket.disconnect());
     }
 
     /**

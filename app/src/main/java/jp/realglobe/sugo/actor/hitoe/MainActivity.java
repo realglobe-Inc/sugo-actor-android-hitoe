@@ -534,7 +534,7 @@ public class MainActivity extends AppCompatActivity {
     private synchronized void processAfterGreeting(Socket socket, String actorKey, long interval) {
         if (this.state == State.MAIN) {
             // 終了
-            socket.disconnect();
+            disconnect(socket, actorKey);
             this.hubConnecting = false;
             return;
         }
@@ -562,7 +562,7 @@ public class MainActivity extends AppCompatActivity {
     private synchronized void report(Socket socket, String actorKey, long interval) {
         if (this.state == State.MAIN) {
             // 終了
-            socket.disconnect();
+            disconnect(socket, actorKey);
             this.hubConnecting = false;
             return;
         }
@@ -575,6 +575,8 @@ public class MainActivity extends AppCompatActivity {
         final Location curLocation = this.location;
         if (curLocation != null) {
             data.put(KEY_LOCATION, Arrays.asList(curLocation.getLatitude(), curLocation.getLongitude(), curLocation.getAltitude()));
+        } else {
+            data.put(KEY_LOCATION, Arrays.asList(0, 0, 0));
         }
         emit(socket, actorKey, this.state.name().toLowerCase(), data);
         Log.d(LOG_TAG, socket.id() + " sent report");
@@ -591,6 +593,12 @@ public class MainActivity extends AppCompatActivity {
             wrapData.put(KEY_DATA, data);
         }
         socket.emit(SocketConstants.RemoteEvents.PIPE, new JSONObject(wrapData));
+    }
+
+    private void disconnect(Socket socket, String actorKey) {
+        final Map<String, Object> data = new HashMap<>();
+        data.put(KEY_KEY, actorKey);
+        socket.emit(SocketConstants.GreetingEvents.BYE, new JSONObject(data), (Ack) args -> socket.disconnect());
     }
 
     /**

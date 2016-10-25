@@ -13,6 +13,7 @@ public final class SocketConstants {
         }
 
         static final String HI = "sg:greet:hi";
+        static final String BYE = "sg:greet:bye";
     }
 
     static final class RemoteEvents {

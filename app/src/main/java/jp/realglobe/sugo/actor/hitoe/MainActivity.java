@@ -575,6 +575,8 @@ public class MainActivity extends AppCompatActivity {
         final Location curLocation = this.location;
         if (curLocation != null) {
             data.put(KEY_LOCATION, Arrays.asList(curLocation.getLatitude(), curLocation.getLongitude(), curLocation.getAltitude()));
+        } else {
+            data.put(KEY_LOCATION, Arrays.asList(0, 0, 0));
         }
         emit(socket, actorKey, this.state.name().toLowerCase(), data);
         Log.d(LOG_TAG, socket.id() + " sent report");

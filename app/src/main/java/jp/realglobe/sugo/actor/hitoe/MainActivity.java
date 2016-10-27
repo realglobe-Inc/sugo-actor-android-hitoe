@@ -108,6 +108,9 @@ public class MainActivity extends AppCompatActivity {
     // 通報の識別番号
     private int reportId = Math.abs((int) System.nanoTime());
 
+    // 警告文の表示場所
+    private TextView warningView;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -147,7 +150,11 @@ public class MainActivity extends AppCompatActivity {
                         Log.d(LOG_TAG, "Location monitor suspended");
                     }
                 })
-                .addOnConnectionFailedListener(connectionResult -> Log.w(LOG_TAG, "Location detection error: " + connectionResult))
+                .addOnConnectionFailedListener(connectionResult -> {
+                    final String warning = "Location detection error: " + connectionResult;
+                    MainActivity.this.warningView.post(() -> setWarning(warning));
+                    Log.w(LOG_TAG, warning);
+                })
                 .build();
         hitoe = new HitoeWrapper(HitoeSdkAPIImpl.getInstance(this.getApplicationContext()));
         hitoe.setHeartrateReceiver(() -> {
@@ -190,6 +197,10 @@ public class MainActivity extends AppCompatActivity {
 
         // 必要な許可を取得できているか調べる
         checkPermission();
+    }
+
+    private synchronized void setWarning(String warning) {
+        this.warningView.setText(warning);
     }
 
     /**
@@ -353,7 +364,17 @@ public class MainActivity extends AppCompatActivity {
         this.heartrateView = (TextView) findViewById(R.id.text_heartrate_value);
         this.heartrateView.setText(String.format(Locale.US, "%d", heartrate.second));
 
+        relayWarningView();
+
         Log.d(LOG_TAG, "Mode was reset");
+    }
+
+    private synchronized void relayWarningView() {
+        final TextView old = this.warningView;
+        this.warningView = (TextView) findViewById(R.id.text_warning);
+        if (old != null) {
+            this.warningView.setText(old.getText());
+        }
     }
 
     /**
@@ -405,6 +426,8 @@ public class MainActivity extends AppCompatActivity {
 
         startReport();
 
+        relayWarningView();
+
         Log.d(LOG_TAG, "Warning mode started");
     }
 
@@ -451,6 +474,8 @@ public class MainActivity extends AppCompatActivity {
         this.heartrateView.setText(String.format(Locale.US, "%d", heartrate.second));
 
         startReport();
+
+        relayWarningView();
 
         Log.d(LOG_TAG, "Emergency mode started");
     }

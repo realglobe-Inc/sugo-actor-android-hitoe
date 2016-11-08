@@ -1,4 +1,4 @@
-package jp.realglobe.sugo.actor.hitoe;
+package jp.realglobe.sugo.actor.android.hitoe;
 
 import android.app.AlertDialog;
 import android.app.Dialog;
@@ -22,6 +22,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+
+import jp.realglobe.sugo.actor.android.hitoe.R;
 
 /**
  * 心拍センサーを準備する

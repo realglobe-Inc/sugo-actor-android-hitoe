@@ -1,4 +1,4 @@
-package jp.realglobe.sugo.actor.hitoe;
+package jp.realglobe.sugo.actor.android.hitoe;
 
 import android.content.SharedPreferences;
 import android.os.Bundle;
@@ -8,6 +8,8 @@ import android.preference.PreferenceFragment;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
+
+import jp.realglobe.sugo.actor.android.hitoe.R;
 
 /**
  * 設定画面

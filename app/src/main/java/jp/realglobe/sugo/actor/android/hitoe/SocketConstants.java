@@ -1,4 +1,4 @@
-package jp.realglobe.sugo.actor.hitoe;
+package jp.realglobe.sugo.actor.android.hitoe;
 
 /**
  * Created by fukuchidaisuke on 16/09/30.

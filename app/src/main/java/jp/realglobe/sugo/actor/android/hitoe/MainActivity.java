@@ -50,7 +50,6 @@ import io.socket.client.Ack;
 import io.socket.client.Manager;
 import io.socket.client.Socket;
 import jp.ne.docomo.smt.dev.hitoetransmitter.sdk.HitoeSdkAPIImpl;
-import jp.realglobe.sugo.actor.android.hitoe.R;
 
 public class MainActivity extends AppCompatActivity {
 

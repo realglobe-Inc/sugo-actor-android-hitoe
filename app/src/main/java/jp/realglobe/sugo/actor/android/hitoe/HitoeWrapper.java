@@ -1,4 +1,4 @@
-package jp.realglobe.sugo.actor.hitoe;
+package jp.realglobe.sugo.actor.android.hitoe;
 
 import android.support.annotation.NonNull;
 import android.util.Log;

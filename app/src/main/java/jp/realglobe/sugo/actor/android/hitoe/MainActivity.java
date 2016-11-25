@@ -535,6 +535,7 @@ public class MainActivity extends AppCompatActivity {
             Log.d(LOG_TAG, "Connected to " + server);
             processAfterConnection(socket, actorKey, interval);
         });
+        socket.on(Socket.EVENT_CONNECT_ERROR, args -> Log.e(LOG_TAG, "Connection error: " + args[0]));
         socket.on(Socket.EVENT_DISCONNECT, args -> Log.d(LOG_TAG, "Disconnected from " + server));
         socket.connect();
     }

@@ -530,7 +530,12 @@ public class MainActivity extends AppCompatActivity {
         final String actorKey = getString(R.string.actor_prefix) + sharedPreferences.getString(getString(R.string.key_actor_suffix), getString(R.string.default_actor_suffix));
         final long interval = 1_000L * Long.parseLong(sharedPreferences.getString(getString(R.string.key_report_interval), getString(R.string.default_report_interval)));
 
-        final Socket socket = (new Manager(URI.create(server))).socket(NAMESPACE);
+        final URI serverUri = URI.create(server);
+        final Manager.Options options = new Manager.Options();
+        options.host = serverUri.getHost() + serverUri.getPath();
+        options.secure = serverUri.getScheme().equals("https");
+        options.transports = new String[]{"websocket"};
+        final Socket socket = (new Manager(options)).socket(NAMESPACE);
         socket.on(Socket.EVENT_CONNECT, args -> {
             Log.d(LOG_TAG, "Connected to " + server);
             processAfterConnection(socket, actorKey, interval);

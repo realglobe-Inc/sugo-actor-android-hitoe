@@ -34,7 +34,7 @@ dependencies {
     compile 'com.android.support:appcompat-v7:25.0.1'
     testCompile 'junit:junit:4.12'
     compile 'com.google.android.gms:play-services-location:10.0.0'
-    compile('io.socket:socket.io-client:0.8.1') {
+    compile('jp.realglobe:sugo-actor:2.0.3') {
         // excluding org.json which is provided by Android
         exclude group: 'org.json', module: 'json'
     }
@@ -42,4 +42,15 @@ dependencies {
     // hitoe
     compile files('libs/docomo-hitoetransmitter-android-sdk-1.1.0.jar')
     compile files('libs/docomo-hitoetransmittereai-android-sdk-1.1.0.jar')
+}
+
+repositories {
+    jcenter()
+    maven {
+        url "${artifactory_contextUrl}/libs-release"
+        credentials {
+            username = "${artifactory_user}"
+            password = "${artifactory_password}"
+        }
+    }
 }

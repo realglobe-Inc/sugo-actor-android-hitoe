@@ -33,9 +33,6 @@ import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
 
-import org.json.JSONObject;
-
-import java.net.URI;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Date;
@@ -46,11 +43,9 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 
-import io.socket.client.Ack;
-import io.socket.client.Manager;
-import io.socket.client.Socket;
 import jp.ne.docomo.smt.dev.hitoetransmitter.sdk.HitoeSdkAPIImpl;
-import jp.realglobe.sugo.actor.android.hitoe.R;
+import jp.realglobe.sugo.actor.Actor;
+import jp.realglobe.sugo.actor.Emitter;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -58,18 +53,7 @@ public class MainActivity extends AppCompatActivity {
 
     private static final long LOCATION_INTERVAL = 10_000;
 
-    private static final String NAMESPACE = "/actors";
-
     // 送信データのキー
-    private static final String KEY_KEY = "key";
-    private static final String KEY_NAME = "name";
-    private static final String KEY_SPEC = "spec";
-    private static final String KEY_VERSION = "version";
-    private static final String KEY_DESC = "desc";
-    private static final String KEY_METHODS = "methods";
-    private static final String KEY_MODULE = "module";
-    private static final String KEY_EVENT = "event";
-    private static final String KEY_DATA = "data";
     private static final String KEY_HEART_RATE = "heartRate";
     private static final String KEY_LOCATION = "location";
     private static final String KEY_DATE = "date";
@@ -103,13 +87,13 @@ public class MainActivity extends AppCompatActivity {
     private volatile Pair<Long, Integer> heartrate;
     // 心拍数を表示する部品
     private volatile TextView heartrateView;
-    // hub につないでいるかどうか
-    private boolean hubConnecting;
     // 通報の識別番号
     private int reportId = Math.abs((int) System.nanoTime());
 
     // 警告文の表示場所
     private TextView warningView;
+
+    private Actor actor;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -364,6 +348,11 @@ public class MainActivity extends AppCompatActivity {
         this.heartrateView = (TextView) findViewById(R.id.text_heartrate_value);
         this.heartrateView.setText(String.format(Locale.US, "%d", heartrate.second));
 
+        if (this.actor != null) {
+            this.actor.disconnect();
+            this.actor = null;
+        }
+
         relayWarningView();
 
         Log.d(LOG_TAG, "Mode was reset");
@@ -520,75 +509,30 @@ public class MainActivity extends AppCompatActivity {
      * サーバーへの報告を始める
      */
     private synchronized void startReport() {
-        if (this.hubConnecting) {
+        if (this.actor != null) {
             Log.d(LOG_TAG, "Already connecting");
             return;
         }
-        this.hubConnecting = true;
         this.reportId++;
         final SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
         final String server = sharedPreferences.getString(getString(R.string.key_server), getString(R.string.default_server));
         final String actorKey = getString(R.string.actor_prefix) + sharedPreferences.getString(getString(R.string.key_actor_suffix), getString(R.string.default_actor_suffix));
         final long interval = 1_000L * Long.parseLong(sharedPreferences.getString(getString(R.string.key_report_interval), getString(R.string.default_report_interval)));
 
-        final Socket socket = (new Manager(URI.create(server))).socket(NAMESPACE);
-        socket.on(Socket.EVENT_CONNECT, args -> {
-            Log.d(LOG_TAG, "Connected to " + server);
-            processAfterConnection(socket, actorKey, interval);
-        });
-        socket.on(Socket.EVENT_DISCONNECT, args -> Log.d(LOG_TAG, "Disconnected from " + server));
-        socket.connect();
-    }
-
-    private synchronized void processAfterConnection(Socket socket, String actorKey, long interval) {
-        if (this.state == State.MAIN) {
-            // 終了
-            socket.disconnect();
-            this.hubConnecting = false;
-            return;
-        }
-
-        final Map<String, Object> data = new HashMap<>();
-        data.put(KEY_KEY, actorKey);
-        socket.emit(SocketConstants.GreetingEvents.HI, new JSONObject(data), (Ack) args -> {
-            Log.d(LOG_TAG, socket.id() + " greeted");
-            processAfterGreeting(socket, actorKey, interval);
-        });
-    }
-
-    private synchronized void processAfterGreeting(Socket socket, String actorKey, long interval) {
-        if (this.state == State.MAIN) {
-            // 終了
-            disconnect(socket, actorKey);
-            this.hubConnecting = false;
-            return;
-        }
-
-        final Map<String, Object> specData = new HashMap<>();
-        specData.put(KEY_NAME, getString(R.string.module));
+        this.actor = new Actor(server, actorKey, getString(R.string.module), null);
+        final Emitter emitter;
         try {
-            specData.put(KEY_VERSION, getPackageManager().getPackageInfo(this.getPackageName(), 0).versionName);
+            emitter = actor.addModule(getString(R.string.module), getPackageManager().getPackageInfo(this.getPackageName(), 0).versionName, getString(R.string.description), new Object());
         } catch (PackageManager.NameNotFoundException e) {
             throw new RuntimeException(e);
         }
-        specData.put(KEY_DESC, getString(R.string.description));
-        specData.put(KEY_METHODS, new HashMap<String, Object>());
-
-        final Map<String, Object> data = new HashMap<>();
-        data.put(KEY_NAME, getString(R.string.module));
-        data.put(KEY_SPEC, specData);
-
-        socket.emit(SocketConstants.RemoteEvents.SPEC, new JSONObject(data), (Ack) args -> {
-            Log.d(LOG_TAG, socket.id() + " sent specification");
-            report(socket, actorKey, interval);
-        });
+        actor.setOnConnect(() -> report(emitter, interval));
+        actor.connect();
     }
 
-    private synchronized void report(Socket socket, String actorKey, long interval) {
-        if (this.state == State.MAIN) {
+    private synchronized void report(Emitter emitter, long interval) {
+        if (this.actor == null) {
             // 終了
-            disconnect(socket, actorKey);
-            this.hubConnecting = false;
             return;
         }
 
@@ -603,27 +547,10 @@ public class MainActivity extends AppCompatActivity {
         } else {
             data.put(KEY_LOCATION, Arrays.asList(0, 0, 0));
         }
-        emit(socket, actorKey, this.state.name().toLowerCase(), data);
-        Log.d(LOG_TAG, socket.id() + " sent report");
+        emitter.emit(this.state.name().toLowerCase(), data);
+        Log.d(LOG_TAG, "Sent report");
 
-        this.handler.postDelayed(() -> report(socket, actorKey, interval), interval);
-    }
-
-    private void emit(Socket socket, String actorKey, String event, Map<String, Object> data) {
-        final Map<String, Object> wrapData = new HashMap<>();
-        wrapData.put(KEY_KEY, actorKey);
-        wrapData.put(KEY_MODULE, getString(R.string.module));
-        wrapData.put(KEY_EVENT, event);
-        if (data != null) {
-            wrapData.put(KEY_DATA, data);
-        }
-        socket.emit(SocketConstants.RemoteEvents.PIPE, new JSONObject(wrapData));
-    }
-
-    private void disconnect(Socket socket, String actorKey) {
-        final Map<String, Object> data = new HashMap<>();
-        data.put(KEY_KEY, actorKey);
-        socket.emit(SocketConstants.GreetingEvents.BYE, new JSONObject(data), (Ack) args -> socket.disconnect());
+        this.handler.postDelayed(() -> report(emitter, interval), interval);
     }
 
     /**

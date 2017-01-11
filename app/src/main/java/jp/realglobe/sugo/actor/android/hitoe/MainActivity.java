@@ -519,7 +519,7 @@ public class MainActivity extends AppCompatActivity {
         final String actorKey = getString(R.string.actor_prefix) + sharedPreferences.getString(getString(R.string.key_actor_suffix), getString(R.string.default_actor_suffix));
         final long interval = 1_000L * Long.parseLong(sharedPreferences.getString(getString(R.string.key_report_interval), getString(R.string.default_report_interval)));
 
-        this.actor = new Actor(server, actorKey, getString(R.string.module), null);
+        this.actor = new Actor(actorKey, getString(R.string.module), null);
         final Emitter emitter;
         try {
             emitter = actor.addModule(getString(R.string.module), getPackageManager().getPackageInfo(this.getPackageName(), 0).versionName, getString(R.string.description), new Object());
@@ -527,7 +527,7 @@ public class MainActivity extends AppCompatActivity {
             throw new RuntimeException(e);
         }
         actor.setOnConnect(() -> report(emitter, interval));
-        actor.connect();
+        actor.connect(server);
     }
 
     private synchronized void report(Emitter emitter, long interval) {

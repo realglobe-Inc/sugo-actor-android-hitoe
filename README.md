@@ -41,3 +41,8 @@ Android で動く、hitoe を使った心拍異常検知 module を内蔵した 
 
 異常検知の確認に対してユーザーが反応しなかった、または、明示的に救助を要請した。
 データは warning と同じ。
+
+
+## License
+
+Apache License, Version 2.0

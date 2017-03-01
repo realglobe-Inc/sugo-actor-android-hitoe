@@ -43,14 +43,3 @@ dependencies {
     compile files('libs/docomo-hitoetransmitter-android-sdk-1.1.0.jar')
     compile files('libs/docomo-hitoetransmittereai-android-sdk-1.1.0.jar')
 }
-
-repositories {
-    jcenter()
-    maven {
-        url "${artifactory_contextUrl}/libs-release"
-        credentials {
-            username = "${artifactory_user}"
-            password = "${artifactory_password}"
-        }
-    }
-}

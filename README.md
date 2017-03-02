@@ -9,7 +9,7 @@ Android で動く、hitoe を使った心拍異常検知 module を内蔵した 
 + [emergency](#event/emergency)
 
 
-### warning <a id="event/warning">
+### <span id="event/warning">warning</span>
 
 異常を検知しユーザーに確認を求めている状態。
 データは以下の要素を含む。
@@ -37,7 +37,12 @@ Android で動く、hitoe を使った心拍異常検知 module を内蔵した 
 ```
 
 
-### emergency <a id="event/emergency">
+### <span id="event/emergency">emergency</span>
 
 異常検知の確認に対してユーザーが反応しなかった、または、明示的に救助を要請した。
 データは warning と同じ。
+
+
+## License
+
+Apache License, Version 2.0
